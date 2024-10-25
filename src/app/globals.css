@@ -3,10 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ffffff; /* Fondo para el modo claro */
+  --foreground: #171717; /* Texto para el modo claro */
 }
 
+.dark {
+  --background: #0a0a0a; /* Fondo para el modo oscuro */
+  --foreground: #ededed; /* Texto para el modo oscuro */
+}
+
+/* Mantén soporte para 'prefers-color-scheme' */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -14,12 +20,14 @@
   }
 }
 
+/* Aplicar las variables de color */
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Custom utility para texto balanceado */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
