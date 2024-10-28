@@ -4,17 +4,19 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
+import { useGoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import Modal from './Modal';
 import NavBar from '../NavBar';
 import FloatingButton from './FloatingButton';
-import Notification from '../Notification'; // Importa la notificación
+import Notification from '../Notification';
 
-function Calendar() {
+function CalendarComponent() {
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [googleEvents, setGoogleEvents] = useState([]); // Google events
   const [eventData, setEventData] = useState({
     id: null,
     title: '',
@@ -42,6 +44,35 @@ function Calendar() {
     }
   };
 
+  const transformGoogleEvent = (event) => ({
+    id: event.id,
+    title: event.summary || 'Sin título',
+    start: event.start?.dateTime || event.start?.date || '',  // Added null checks
+    end: event.end?.dateTime || event.end?.date || '',
+    color: '#4285F4',
+    googleEvent: true,
+  });
+
+  const fetchGoogleEvents = async (accessToken) => {
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.items) {
+        const googleEvents = data.items.map(transformGoogleEvent);
+        setGoogleEvents(googleEvents);
+      }
+    } catch (error) {
+      console.error('Error fetching Google events:', error);
+    }
+  };
+
   useEffect(() => {
     if (!userId) {
       console.error('UserId not found in localStorage');
@@ -49,6 +80,21 @@ function Calendar() {
     }
     fetchEvents();
   }, [userId]);
+
+  // Merge Google and Local Events
+  const mergedEvents = [...calendarEvents, ...googleEvents];
+
+  // Google Login Handler
+  const handleGoogleLogin = useGoogleLogin({
+    scope: 'https://www.googleapis.com/auth/calendar.events.readonly',
+    onSuccess: async (tokenResponse) => {
+      console.log("Logged in with Google:", tokenResponse);
+      await fetchGoogleEvents(tokenResponse.access_token); // Asegúrate de enviar el token correcto
+    },
+    onError: () => {
+      console.log('Error al iniciar sesión con Google');
+    },
+  });
 
   const handleSaveEvent = async () => {
     const newEvent = {
@@ -75,7 +121,6 @@ function Calendar() {
       await fetchEvents();
       setModalOpen(false);
 
-      // Configura el mensaje de notificación
       setNotificationMessage(eventData.id ? 'Evento modificado correctamente.' : 'Evento añadido al calendario.');
       setNotificationVisible(true);
     } catch (error) {
@@ -143,6 +188,7 @@ function Calendar() {
     <div className="flex flex-col h-screen">
       <NavBar />
       <div className="flex justify-center w-full flex-grow p-4 mt-32">
+
         <div className="w-[70%] h-[60vh] overflow-auto">
           <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
@@ -152,7 +198,7 @@ function Calendar() {
               center: 'title',
               end: 'dayGridMonth,timeGridWeek,timeGridDay, listMonth',
             }}
-            events={calendarEvents}
+            events={mergedEvents}
             dateClick={handleDateClick}
             eventClick={handleEventClick}
             eventContent={(eventInfo) => (
@@ -161,6 +207,9 @@ function Calendar() {
                 className="rounded p-1 text-white w-full h-full"
               >
                 <b>{eventInfo.event.title}</b>
+                {eventInfo.event.extendedProps.googleEvent && (
+                  <img src="/icon-google.png" alt="Google" className="w-4 h-4 ml-2 inline-block" />
+                )}
               </div>
             )}
             height="auto"
@@ -168,6 +217,13 @@ function Calendar() {
           />
         </div>
       </div>
+      <button
+        onClick={handleGoogleLogin}
+        className="bg-blue-600 text-white mb-32 px-4 py-2 rounded-full flex items-center justify-center space-x-2 shadow-md hover:bg-blue-700 hover:shadow-lg transition-all duration-200 ease-in-out mt-8 mx-auto w-1/3"
+      >
+        <img src="/icon-google.png" alt="Google icon" className="w-6 h-6" />
+        <span>Sincronizar con Google Calendar</span>
+      </button>
       {modalOpen && (
         <Modal
           eventData={eventData}
@@ -179,6 +235,7 @@ function Calendar() {
         />
       )}
       <FloatingButton onClick={handleFloatingButtonClick} />
+      
       {notificationVisible && (
         <Notification
           message={notificationMessage}
@@ -187,6 +244,15 @@ function Calendar() {
         />
       )}
     </div>
+  );
+}
+
+// Wrapping the CalendarComponent within the GoogleOAuthProvider
+function Calendar() {
+  return (
+    <GoogleOAuthProvider clientId="583483058528-f3nard0eo1n1c7a0359075i9r19o954i.apps.googleusercontent.com">
+      <CalendarComponent />
+    </GoogleOAuthProvider>
   );
 }
 
