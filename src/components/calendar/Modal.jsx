@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
 const Modal = ({ eventData, setEventData, handleSaveEvent, handleDeleteEvent, closeModal, selectedEvent }) => {
-  const [selectedColor, setSelectedColor] = useState(eventData.color || '#ff9f89'); // Default color
+  const [selectedColor, setSelectedColor] = useState(eventData?.color || '#ff9f89'); // Color predeterminado
 
   useEffect(() => {
     if (selectedEvent) {
-      setSelectedColor(eventData.color || '#ff9f89');
+      setSelectedColor(selectedEvent.backgroundColor || '#ff9f89'); // Verificación de color
     }
-  }, [selectedEvent, eventData.color]);
+  }, [selectedEvent]);
 
   // Manejar cambios en los inputs del modal
   const handleInputChange = (e) => {
@@ -32,7 +32,7 @@ const Modal = ({ eventData, setEventData, handleSaveEvent, handleDeleteEvent, cl
           name="title"
           id="title"
           placeholder="Enter event title"
-          value={eventData.title || ''}
+          value={eventData?.title || ''} // Usa el operador ? para evitar errores
           onChange={handleInputChange}
           className="w-full p-2 mb-4 border rounded"
         />
@@ -42,17 +42,18 @@ const Modal = ({ eventData, setEventData, handleSaveEvent, handleDeleteEvent, cl
           type="date"
           name="startDate"
           id="startDate"
-          value={eventData.startDate}
+          value={eventData?.startDate || ''}  // Agregar operador opcional
           onChange={handleInputChange}
           className="w-full p-2 mb-4 border rounded"
         />
+
 
         <label htmlFor="endDate" className="block text-gray-700 mb-2">End Date</label>
         <input
           type="date"
           name="endDate"
           id="endDate"
-          value={eventData.endDate}
+          value={eventData?.endDate || ''}
           onChange={handleInputChange}
           className="w-full p-2 mb-4 border rounded"
         />
@@ -62,7 +63,7 @@ const Modal = ({ eventData, setEventData, handleSaveEvent, handleDeleteEvent, cl
           type="time"
           name="startTime"
           id="startTime"
-          value={eventData.startTime}
+          value={eventData?.startTime || ''}
           onChange={handleInputChange}
           className="w-full p-2 mb-4 border rounded"
         />
@@ -72,7 +73,7 @@ const Modal = ({ eventData, setEventData, handleSaveEvent, handleDeleteEvent, cl
           type="time"
           name="endTime"
           id="endTime"
-          value={eventData.endTime}
+          value={eventData?.endTime || ''}
           onChange={handleInputChange}
           className="w-full p-2 mb-4 border rounded"
         />
