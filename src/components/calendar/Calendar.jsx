@@ -4,11 +4,11 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
-import { useGoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import Modal from './Modal';
 import NavBar from '../NavBar';
 import FloatingButton from './FloatingButton';
 import Notification from '../Notification';
+import '../../app/globals.css';
 
 function CalendarComponent() {
   const [calendarEvents, setCalendarEvents] = useState([]);
@@ -17,9 +17,8 @@ function CalendarComponent() {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [googleEvents, setGoogleEvents] = useState([]); // Google events
   const [showICalModal, setShowICalModal] = useState(false);
-  const [calendarUrl, setCalendarUrl] = useState('');
+  const [calendarUrl, setCalendarUrl] = useState('');  
   const [eventData, setEventData] = useState({
     id: null,
     title: '',
@@ -56,26 +55,6 @@ function CalendarComponent() {
     googleEvent: true,
   });
 
-  const fetchGoogleEvents = async (accessToken) => {
-    try {
-      const response = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-      const data = await response.json();
-      if (data.items) {
-        const googleEvents = data.items.map(transformGoogleEvent);
-        setGoogleEvents(googleEvents);
-      }
-    } catch (error) {
-      console.error('Error fetching Google events:', error);
-    }
-  };
-
   useEffect(() => {
     if (!userId) {
       console.error('UserId not found in localStorage');
@@ -83,21 +62,6 @@ function CalendarComponent() {
     }
     fetchEvents();
   }, [userId]);
-
-  // Merge Google and Local Events
-  const mergedEvents = [...calendarEvents, ...googleEvents];
-
-  // Google Login Handler
-  const handleGoogleLogin = useGoogleLogin({
-    scope: 'https://www.googleapis.com/auth/calendar.events.readonly',
-    onSuccess: async (tokenResponse) => {
-      console.log("Logged in with Google:", tokenResponse);
-      await fetchGoogleEvents(tokenResponse.access_token); // Asegúrate de enviar el token correcto
-    },
-    onError: () => {
-      console.log('Error al iniciar sesión con Google');
-    },
-  });
 
   const handleSaveEvent = async () => {
     const newEvent = {
@@ -260,6 +224,96 @@ const convertDateToMySQLFormat = (dateString) => {
 };
 
 
+  // Function to fetch the iCal URL from the database
+  const fetchICalUrl = async () => {
+    try {
+      const response = await fetch(`/api/saveICalEvents?userId=${userId}`);
+      if (!response.ok) throw new Error('Error al obtener la URL de iCal');
+      const data = await response.json();
+      if (data.url) {
+        setCalendarUrl(data.url);
+      } else {
+        setCalendarUrl(''); // Clear the URL if none is found
+      }
+    } catch (error) {
+      console.error('Error al obtener la URL de iCal:', error);
+    }
+  };
+
+  // Function to handle opening the iCal modal
+  const handleOpenICalModal = async () => {
+    await fetchICalUrl(); // Fetch the URL before opening the modal
+    setShowICalModal(true);
+  };
+
+const verifyAndAddICalEvents = async () => {
+  if (!calendarUrl) {
+    console.log('No iCal URL found.');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/icalEvents?url=${encodeURIComponent(calendarUrl)}`);
+    const iCalData = await response.json();
+
+    if (!Array.isArray(iCalData) || iCalData.length === 0) {
+      console.log('No new iCal events to add.');
+      return;
+    }
+
+    const formattedEvents = iCalData.map(event => ({
+      userId,
+      title: event.title || "Sin título",
+      start: convertDateToMySQLFormat(event.start),
+      end: convertDateToMySQLFormat(event.end),
+      color: event.color || "#4285F4",
+    }));
+
+    // Limpia los eventos de iCal antes de agregar nuevos
+    setICalEvents([]);
+
+    const saveResponse = await fetch('/api/saveICalEvents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, url: calendarUrl, events: formattedEvents }),
+    });
+
+    const result = await saveResponse.json();
+    console.log("Respuesta del servidor:", result);
+
+    if (!saveResponse.ok) throw new Error('Error al guardar eventos en la base de datos');
+    console.log("Eventos y URL guardados en la base de datos.");
+
+    // Añade los eventos al estado después de limpiar
+    setICalEvents(prevICalEvents => [...prevICalEvents, ...uniqueEvents(prevICalEvents, formattedEvents)]);
+    setCalendarEvents(prevEvents => [...prevEvents, ...uniqueEvents(prevEvents, formattedEvents)]);
+
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};
+
+
+const uniqueEvents = (existingEvents, newEvents) => {
+  const existingIds = new Set(existingEvents.map(event => event.id));
+  return newEvents.filter(event => !existingIds.has(event.id));
+};
+
+  
+  
+useEffect(() => {
+  const initialize = async () => {
+    await fetchICalUrl();
+    // Solo carga y verifica eventos si `calendarUrl` está disponible y no hay eventos ya cargados
+    if (calendarUrl && iCalEvents.length === 0) {
+      await verifyAndAddICalEvents();
+    }
+  };
+
+  initialize();
+}, []); // Quita `calendarUrl` de las dependencias para evitar recargar múltiples veces
+
+  
 
 
   return (
@@ -270,40 +324,37 @@ const convertDateToMySQLFormat = (dateString) => {
         <div className="w-[70%] h-[60vh] overflow-auto">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-          initialView="dayGridMonth"
+          initialView="dayGridMonth" // Cambia a dayGridMonth para la vista de calendario mensual
           headerToolbar={{
             start: 'prev,next today',
             center: 'title',
-            end: 'dayGridMonth,timeGridWeek,timeGridDay, listMonth',
+            end: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth',
           }}
-          events={mergedEvents}
+          events={[...calendarEvents, ...iCalEvents]}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventContent={(eventInfo) => (
             <div
-              style={{ backgroundColor: eventInfo.event.backgroundColor }}
-              className="rounded p-1 text-white w-full h-full flex items-center"
+              className="event-box"
+              style={{
+                backgroundColor: eventInfo.event.backgroundColor,
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontWeight: '500',
+                width: '100%', // Para ocupar todo el espacio de la celda
+                textAlign: 'center',
+              }}
             >
-              <b>{eventInfo.event.title}</b>
-              {eventInfo.event.backgroundColor === "#4285F4" && (
-                <img src="/icon-google.png" alt="Google" className="w-4 h-4 ml-2" />
-              )}
+              {eventInfo.event.title}
             </div>
           )}
           height="auto"
           contentHeight="auto"
         />
 
-
         </div>
       </div>
-      <button
-        onClick={handleGoogleLogin}
-        className="bg-blue-600 text-white mb-32 px-4 py-2 rounded-full flex items-center justify-center space-x-2 shadow-md hover:bg-blue-700 hover:shadow-lg transition-all duration-200 ease-in-out mt-8 mx-auto w-1/3"
-      >
-        <img src="/icon-google.png" alt="Google icon" className="w-6 h-6" />
-        <span>Sincronizar con Google Calendar</span>
-      </button>
       {modalOpen && (
         <Modal
           eventData={eventData}
@@ -317,7 +368,7 @@ const convertDateToMySQLFormat = (dateString) => {
       <FloatingButton onClick={handleFloatingButtonClick} />
 
       <button
-        onClick={() => setShowICalModal(true)}
+        onClick={handleOpenICalModal}
         className="bg-blue-600 text-white mb-2 px-4 py-2 rounded-full flex items-center justify-center space-x-2 shadow-md hover:bg-blue-700 hover:shadow-lg transition-all duration-200 ease-in-out mx-auto w-1/3"
       >
         Añadir iCal URL
@@ -325,41 +376,42 @@ const convertDateToMySQLFormat = (dateString) => {
 
       {/* Modal para ingresar la URL de iCal */}
       {showICalModal && (
-      <div 
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
-        onClick={() => setShowICalModal(false)} // Close on outside click
-      >
-        <div
-          className="bg-white p-6 rounded-md w-full max-w-md relative" 
-          onClick={(e) => e.stopPropagation()} // Prevent click from closing modal if inside
+        <div 
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowICalModal(false)} // Close on outside click
         >
-          <button 
-            onClick={() => setShowICalModal(false)}
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+          <div
+            className="bg-white p-6 rounded-md w-full max-w-md relative" 
+            onClick={(e) => e.stopPropagation()} // Prevent click from closing modal if inside
           >
-            ✕
-          </button>
-          <h2 className="text-lg font-semibold mb-4">Ingresar URL de iCal</h2>
-          <input
-            type="text"
-            value={calendarUrl}
-            onChange={(e) => setCalendarUrl(e.target.value)}
-            placeholder="Ingrese su URL de iCal"
-            className="w-full p-2 border rounded mb-4"
-          />
-          <button
-            onClick={async () => {
-              await fetchICalEvents();
-              await saveICalEventsToDatabase();
-              setShowICalModal(false);
-            }}
-            className="bg-green-600 text-white px-4 py-2 rounded w-full"
-          >
-            Cargar Eventos
-          </button>
+            <button 
+              onClick={() => setShowICalModal(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+            <h2 className="text-lg font-semibold mb-4">Ingresar URL de iCal</h2>
+            <h2 className="text-lg font-semibold mb-4">Ve a tu calendario de Google y copia la URL de iCal</h2>
+            <input
+              type="text"
+              value={calendarUrl}
+              onChange={(e) => setCalendarUrl(e.target.value)}
+              placeholder="Ingrese su URL de iCal"
+              className="w-full p-2 border rounded mb-4"
+            />
+            <button
+              onClick={async () => {
+                await fetchICalEvents();
+                await saveICalEventsToDatabase();
+                setShowICalModal(false);
+              }}
+              className="bg-green-600 text-white px-4 py-2 rounded w-full"
+            >
+              Cargar Eventos
+            </button>
+          </div>
         </div>
-      </div>
-    )}
+      )}
 
 
       
@@ -377,9 +429,7 @@ const convertDateToMySQLFormat = (dateString) => {
 // Wrapping the CalendarComponent within the GoogleOAuthProvider
 function Calendar() {
   return (
-    <GoogleOAuthProvider clientId="583483058528-f3nard0eo1n1c7a0359075i9r19o954i.apps.googleusercontent.com">
       <CalendarComponent />
-    </GoogleOAuthProvider>
   );
 }
 

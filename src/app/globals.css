@@ -1,35 +1,50 @@
+/* globals.css */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff; /* Fondo para el modo claro */
-  --foreground: #171717; /* Texto para el modo claro */
+  --background: #ffffff;
+  --foreground: #171717;
+  --calendar-background: #ffffff;
+  --calendar-text-color: #171717;
+  --calendar-border-color: #e5e7eb;
 }
 
 .dark {
-  --background: #0a0a0a; /* Fondo para el modo oscuro */
-  --foreground: #ededed; /* Texto para el modo oscuro */
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --calendar-background: #1f1f1f;
+  --calendar-text-color: #ededed;
+  --calendar-border-color: #333333;
 }
 
-/* Mantén soporte para 'prefers-color-scheme' */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-/* Aplicar las variables de color */
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Custom utility para texto balanceado */
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Estilos específicos para FullCalendar */
+.fc {
+  background-color: var(--calendar-background);
+  color: var(--calendar-text-color);
+}
+
+.fc-toolbar, .fc-toolbar-title, .fc-daygrid-day, .fc-list-event, .fc-list-event-time {
+  background-color: var(--calendar-background);
+  color: var(--calendar-text-color);
+  border-color: var(--calendar-border-color);
+}
+
+.fc-button {
+  background-color: var(--calendar-background);
+  color: var(--calendar-text-color);
+  border: 1px solid var(--calendar-border-color);
+}
+
+.fc-button:hover, .fc-button:focus {
+  background-color: var(--foreground);
+  color: var(--background);
 }

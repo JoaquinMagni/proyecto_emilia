@@ -8,6 +8,9 @@ import Notification from '@/components/Notification';
 import FloatingButton from '@/components/calendar/FloatingButton';
 import Modal from '@/components/calendar/Modal';
 import { useTranslation } from 'react-i18next';
+import FullCalendar from '@fullcalendar/react';
+import listPlugin from '@fullcalendar/list';
+import interactionPlugin from '@fullcalendar/interaction';
 
 export default function Home() {
   const { user } = useContext(AuthContext);
@@ -24,14 +27,28 @@ export default function Home() {
     endTime: '',
     color: '#ff9f89',
   });
+  const [calendarEvents, setCalendarEvents] = useState([]);
 
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
 
   useEffect(() => {
     if (!user && !localStorage.getItem('token')) {
       router.push('/auth/login');
+    } else {
+      fetchEvents(); // Fetch events if user is authenticated
     }
   }, [user, router]);
+
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch(`/api/calendar?userId=${userId}`);
+      if (!response.ok) throw new Error('Error al cargar eventos');
+      const events = await response.json();
+      setCalendarEvents(events);
+    } catch (error) {
+      console.error('Error al cargar eventos:', error);
+    }
+  };
 
   if (!user) return null;
 
@@ -70,8 +87,9 @@ export default function Home() {
       if (!response.ok) throw new Error('Error al guardar el evento');
       await response.json();
 
-      setModalOpen(false); // Cierra el modal
-      setNotificationVisible(true); // Muestra la notificación
+      fetchEvents(); // Refresh events after saving
+      setModalOpen(false); // Close the modal
+      setNotificationVisible(true); // Show notification
     } catch (error) {
       console.error('Error al guardar evento:', error);
     }
@@ -80,13 +98,32 @@ export default function Home() {
   return (
     <div className="relative min-h-screen">
       <NavBar />
-      <main className="flex flex-col justify-center items-center min-h-screen">
-        <h1>Bienvenido, {user.nombre_usuario}</h1>
-        <h1 className="text-4xl font-bold mb-4">{t('home.welcomeTitle')}</h1>
-        <p className="text-lg mb-4">{t('home.examplePageDescription')}</p>
-        <p className="text-lg">{t('home.themeToggleInstruction')}</p>
+      <main className="flex flex-col justify-center items-center min-h-screen">       
+
+        {/* Agregar calendario en la vista de lista */}
+        <div className="w-full max-w-4xl p-4 mt-16">
+          <FullCalendar
+            plugins={[listPlugin, interactionPlugin]}
+            initialView="listMonth" // Vista de lista
+            events={calendarEvents}
+            height="auto"
+            contentHeight="auto"
+            headerToolbar={{
+              start: 'prev,next today',
+              center: 'title',
+              end: 'listMonth',
+            }}
+            dateClick={() => handleFloatingButtonClick()}
+          />
+        </div>
+          <h1>Bienvenido.</h1>
+          <h1 className="text-4xl font-bold mb-4">{t('home.welcomeTitle')}</h1>
+          <p className="text-lg mb-4">{t('home.examplePageDescription')}</p>
+          <p className="text-lg">{t('home.themeToggleInstruction')}</p>
       </main>
+
       <FloatingButton onClick={handleFloatingButtonClick} />
+
       {modalOpen && (
         <Modal
           eventData={eventData}
@@ -97,7 +134,8 @@ export default function Home() {
           selectedEvent={null}
         />
       )}
-            {notificationVisible && (
+
+      {notificationVisible && (
         <Notification
           message="Evento añadido al calendario."
           duration={5000}
