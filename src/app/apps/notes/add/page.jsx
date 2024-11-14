@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import QuillEditor from '@/components/QuillEditor';
 import { useDropzone } from 'react-dropzone';
@@ -13,44 +13,55 @@ const EditNote = () => {
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [attachments, setAttachments] = useState([]);
-  const [selectedIcon, setSelectedIcon] = useState("/notes/blog-img1.jpg"); // Imagen por defecto
+  const [selectedIcon, setSelectedIcon] = useState("/notes/blog-img1.jpg");
   const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState('');
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false); // Estado para controlar la galería
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+
+  const dropdownRef = useRef(null); // Ref para el menú desplegable
+
+  // Lista de tags predeterminados
+  const predefinedTags = [
+    "Aerolíneas", "AFIP", "Bancos", "Claves en General", "Comidas", 
+    "Cripto", "Direcciones", "Frases", "Italia", "THI", "Visa Australia"
+  ];
+
+  // Configuración de useDropzone
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop: (acceptedFiles) => setAttachments([...attachments, ...acceptedFiles]),
+  });
 
   const handleSaveNote = async () => {
     try {
-      // Subir cada imagen y obtener las rutas
       const uploadedFiles = await Promise.all(
         attachments.map(async (file) => {
           const formData = new FormData();
           formData.append('file', file);
-  
+
           const response = await fetch('/api/upload', {
             method: 'POST',
             body: formData,
           });
-  
+
           if (!response.ok) {
             throw new Error('Error al subir la imagen');
           }
-  
+
           const data = await response.json();
-          return data.filePath; // Ruta de la imagen subida
+          return data.filePath;
         })
       );
-  
-      // Crear la nota con las rutas de las imágenes
+
       const noteData = {
         userId,
         title: noteTitle,
         content: noteContent,
-        attachments: uploadedFiles, // Usar las rutas de las imágenes subidas
+        attachments: uploadedFiles,
         icon: selectedIcon,
         tags,
       };
-  
-      // Guardar la nota
+
       const response = await fetch('/api/notes', {
         method: 'POST',
         headers: {
@@ -58,7 +69,7 @@ const EditNote = () => {
         },
         body: JSON.stringify(noteData),
       });
-  
+
       if (!response.ok) throw new Error('Error al guardar la nota');
       alert('Nota guardada con éxito');
       router.push('/apps/notes');
@@ -67,35 +78,45 @@ const EditNote = () => {
       alert('Hubo un problema al guardar la nota. Por favor, intenta nuevamente.');
     }
   };
-  
-  
-
-  const onDrop = (acceptedFiles) => {
-    setAttachments([...attachments, ...acceptedFiles]);
-  };
 
   const handleAddTag = () => {
     if (newTag && !tags.includes(newTag)) {
       setTags([...tags, newTag]);
       setNewTag('');
     }
+    setShowDropdown(false);
   };
 
   const handleRemoveTag = (tagToRemove) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
-  const { getRootProps, getInputProps } = useDropzone({ onDrop });
+  const handleTagClick = (tag) => {
+    setNewTag(tag);
+    setShowDropdown(false);
+  };
+
+  // Cerrar el menú desplegable al hacer clic fuera de él
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <>
       <NavBar className="mb-32"/>
       <div className="flex justify-center space-x-4 mt-32 px-4">
-        {/* Div para la nota (60%) */}
         <div className="w-3/5 bg-gray-800 p-6 rounded-lg shadow-md">
           <h2 className="text-2xl font-bold mb-4 text-white">Nueva Nota</h2>
           
-          {/* Título y Contenido en un div separado */}
           <div className="mb-4 p-4 bg-gray-700 rounded-md">
             <label className="text-white mb-2 block">Título</label>
             <input
@@ -115,7 +136,6 @@ const EditNote = () => {
             </div>
           </div>
 
-          {/* Dropzone en un div separado */}
           <div className="mb-4 p-4 bg-gray-700 rounded-md">
             <label className="text-white mb-2 block">Agregar Imágenes</label>
             <div
@@ -140,19 +160,16 @@ const EditNote = () => {
           </button>
         </div>
 
-        {/* Div para la miniatura y etiquetas (40%) */}
         <div className="w-2/5 bg-gray-800 p-6 rounded-lg shadow-md flex flex-col space-y-4">
-          {/* Icono en un div que ocupa el 50% superior */}
           <div className="flex-1 p-4 bg-gray-700 rounded-md flex flex-col items-center">
             <h3 className="text-xl font-bold mb-4 text-white self-start">Ícono</h3>
             {!isGalleryOpen ? (
               <div className="flex flex-col items-center">
-                {/* Imagen seleccionada en grande */}
                 <img
                   src={selectedIcon}
                   alt="Ícono seleccionado"
                   className="w-48 h-48 cursor-pointer rounded-md border-2 border-blue-500 transition-opacity duration-300"
-                  onClick={() => setIsGalleryOpen(true)} // Abre la galería al hacer clic
+                  onClick={() => setIsGalleryOpen(true)}
                 />
                 <p className="text-gray-400 mt-2">Haz click en la imagen para elegir otras opciones de miniatura.</p>
               </div>
@@ -165,8 +182,8 @@ const EditNote = () => {
                     alt={`Ícono ${i + 1}`}
                     className="w-16 h-16 cursor-pointer rounded-md border-2 border-transparent hover:border-blue-500 transition-transform duration-200"
                     onClick={() => {
-                      setSelectedIcon(`/notes/blog-img${i + 1}.jpg`); // Cambia la imagen seleccionada
-                      setIsGalleryOpen(false); // Cierra la galería
+                      setSelectedIcon(`/notes/blog-img${i + 1}.jpg`);
+                      setIsGalleryOpen(false);
                     }}
                   />
                 ))}
@@ -174,20 +191,40 @@ const EditNote = () => {
             )}
           </div>
 
-          {/* Etiqueta en un div que ocupa el 50% inferior */}
-          <div className="flex-1 p-4 bg-gray-700 rounded-md">
+          <div className="flex-1 p-4 bg-gray-700 rounded-md relative" ref={dropdownRef}>
             <h3 className="text-xl font-bold mb-4 text-white">Etiqueta</h3>
             <div className="flex mb-4">
               <input
                 type="text"
                 value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
+                onChange={(e) => {
+                  setNewTag(e.target.value);
+                  setShowDropdown(true);
+                }}
+                onFocus={() => setShowDropdown(true)}
                 placeholder="Agregar etiqueta"
                 className="w-full p-2 rounded-md bg-gray-600 text-white border border-gray-500"
               />
               <button onClick={handleAddTag} className="ml-2 bg-green-600 px-4 py-2 text-white rounded-md">Añadir</button>
             </div>
-            <div className="flex flex-wrap space-x-2">
+
+            {showDropdown && (
+              <ul className="absolute z-10 bg-gray-600 text-white w-96 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                {predefinedTags
+                  .filter((tag) => tag.toLowerCase().includes(newTag.toLowerCase()))
+                  .map((tag, index) => (
+                    <li
+                      key={index}
+                      onClick={() => handleTagClick(tag)}
+                      className="px-4 py-2 cursor-pointer hover:bg-gray-500"
+                    >
+                      {tag}
+                    </li>
+                  ))}
+              </ul>
+            )}
+
+            <div className="flex flex-wrap space-x-2 mt-2">
               {tags.map((tag, index) => (
                 <span key={index} className="bg-blue-600 text-white px-2 py-1 rounded-full flex items-center space-x-1">
                   <span>{tag}</span>
@@ -197,7 +234,6 @@ const EditNote = () => {
             </div>
           </div>
         </div>
-
       </div>
     </>
   );
