@@ -1,18 +1,22 @@
 import connection from '../../../../lib/db';
 import { NextResponse } from 'next/server';
 
+export const config = {
+  api: {
+    bodyParser: false, // Desactivar el body parser de Next.js para manejar streams
+  },
+};
+
 export async function POST(request) {
   const { userId, title, content, attachments, icon, tags } = await request.json();
   
   console.log("Datos de la nota recibidos:", { userId, title, content, attachments, icon, tags });
 
-  // Verificación de datos obligatorios
   if (!userId || !title || !content) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
   }
 
   try {
-    // Insertar la nota en la base de datos
     const [result] = await connection.execute(
       'INSERT INTO notas (userId, title, content, attachments, icon, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
       [userId, title, content, JSON.stringify(attachments), icon, JSON.stringify(tags)]
@@ -30,53 +34,59 @@ export async function POST(request) {
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-  }
+  const noteId = searchParams.get('id'); // Obtener el parámetro id si existe
 
   try {
-    const [notes] = await connection.execute(
-      'SELECT id, title, content, attachments, icon, tags, created_at, updated_at FROM notas WHERE userId = ? ORDER BY created_at DESC',
-      [userId]
-    );
+    if (noteId) {
+      const [notes] = await connection.execute(
+        'SELECT id, title, content, attachments, icon, tags, created_at, updated_at FROM notas WHERE id = ? LIMIT 1',
+        [noteId]
+      );
 
-    // Convertir `attachments` y `tags` a arrays válidos
-    const formattedNotes = notes.map(note => ({
-      ...note,
-      attachments: (() => {
-        if (!note.attachments || note.attachments === 'null') return [];
-        try { 
-          return JSON.parse(note.attachments);
-        } catch (e) { 
-          console.error('Error parsing attachments:', e, 'for note id:', note.id);
-          return []; 
-        }
-      })(),
-      tags: (() => {
-        if (!note.tags || note.tags === 'null') return [];
-        
-        // Verificar si `tags` ya es un array o si necesita ser parseado
-        if (typeof note.tags === 'string') {
-          try { 
-            return JSON.parse(note.tags);
-          } catch (e) { 
-            console.error('Error parsing tags:', e, 'for note id:', note.id);
-            return []; 
-          }
-        }
-        return Array.isArray(note.tags) ? note.tags : [];
-      })(),
-    }));
+      if (notes.length === 0) {
+        return NextResponse.json({ error: 'Nota no encontrada' }, { status: 404 });
+      }
 
-    console.log("Formatted notes with parsed tags:", formattedNotes);
+      const note = notes[0];
 
-    return NextResponse.json(formattedNotes);
+      // Parse `attachments` y `tags` sólo si no son arreglos ya
+      note.attachments = Array.isArray(note.attachments) ? note.attachments : parseJSONSafely(note.attachments);
+      note.tags = Array.isArray(note.tags) ? note.tags : parseJSONSafely(note.tags);
+
+      return NextResponse.json(note);
+    } else if (userId) {
+      const [notes] = await connection.execute(
+        'SELECT id, title, content, attachments, icon, tags, created_at, updated_at FROM notas WHERE userId = ? ORDER BY created_at DESC',
+        [userId]
+      );
+
+      const formattedNotes = notes.map(note => {
+        // Verificar si `attachments` y `tags` son arreglos, si no, intentar parsearlos
+        note.attachments = Array.isArray(note.attachments) ? note.attachments : parseJSONSafely(note.attachments);
+        note.tags = Array.isArray(note.tags) ? note.tags : parseJSONSafely(note.tags);
+
+        return note;
+      });
+
+      console.log("Formatted notes with parsed tags:", formattedNotes);
+
+      return NextResponse.json(formattedNotes);
+    } else {
+      return NextResponse.json({ error: 'User ID or Note ID is required' }, { status: 400 });
+    }
   } catch (error) {
     console.error('Error al obtener notas:', error);
     return NextResponse.json({ error: 'Error al obtener notas' }, { status: 500 });
   }
 }
 
-
-
+// Función para parsear JSON de manera segura o devolver un array vacío si falla
+function parseJSONSafely(data) {
+  try {
+    console.log("Intentando parsear JSON:", data);
+    return JSON.parse(data || '[]');
+  } catch (e) {
+    console.error('Error parsing JSON:', e);
+    return [];
+  }
+}

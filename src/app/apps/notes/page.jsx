@@ -8,7 +8,7 @@ const NotesPage = () => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState(''); // Estado para el término de búsqueda
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const notesPerPage = 6;
 
@@ -26,7 +26,15 @@ const NotesPage = () => {
           throw new Error("Failed to fetch notes");
         }
         const data = await response.json();
-        setNotes(data);
+
+        console.log("Formatted notes with tags:", data);
+
+        const formattedData = data.map(note => ({
+          ...note,
+          tags: Array.isArray(note.tags) ? note.tags : [],
+        }));
+
+        setNotes(formattedData);
       } catch (error) {
         setError("Error al obtener las notas. Inténtalo más tarde.");
         console.error("Error fetching notes:", error);
@@ -38,19 +46,16 @@ const NotesPage = () => {
     fetchNotes();
   }, []);
 
-  // Filtrar notas basadas en el término de búsqueda en título, contenido o etiquetas
   const filteredNotes = notes.filter(note =>
     note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (note.tags && note.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
-  // Cálculo de las notas a mostrar en la página actual
   const indexOfLastNote = currentPage * notesPerPage;
   const indexOfFirstNote = indexOfLastNote - notesPerPage;
   const currentNotes = filteredNotes.slice(indexOfFirstNote, indexOfLastNote);
 
-  // Cambiar página
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   return (
@@ -87,12 +92,9 @@ const NotesPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ height: "calc(80vh - 150px)" }}>
             {currentNotes.map((note) => (
               <div key={note.id} className="bg-gray-700 rounded-lg shadow-md overflow-hidden flex flex-col">
-                {/* Imagen de la miniatura */}
                 <div className="h-32 bg-cover bg-center" style={{ backgroundImage: `url(${note.icon})` }}></div>
                 
-                {/* Contenido de la nota */}
                 <div className="p-4 flex-grow">
-                  {/* Etiquetas como hashtags */}
                   <div className="flex flex-wrap gap-2 mb-2">
                     {Array.isArray(note.tags) && note.tags.map((tag, index) => (
                       <span key={index} className="bg-blue-600 text-white px-2 py-1 rounded-full text-sm">
@@ -101,18 +103,20 @@ const NotesPage = () => {
                     ))}
                   </div>
                   
-                  {/* Título de la nota */}
                   <h3 className="text-lg font-bold text-white">{note.title}</h3>
                   
-                  {/* Fragmento del contenido */}
                   <p className="text-gray-300 mt-2 text-sm line-clamp-3">
                     {note.content.replace(/(<([^>]+)>)/gi, "").substring(0, 100)}...
                   </p>
                 </div>
-                
-                {/* Fecha de creación */}
-                <div className="px-4 py-2 text-right text-gray-400 text-xs">
-                  {new Date(note.created_at).toLocaleDateString('es-ES')}
+
+                <div className="px-4 py-2 flex justify-between items-center text-gray-400 text-xs">
+                  <span>{new Date(note.created_at).toLocaleDateString('es-ES')}</span>
+                  <Link href={`/apps/notes/${note.id}`}>
+                    <button className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition text-xs">
+                      Ver Nota
+                    </button>
+                  </Link>
                 </div>
               </div>
             ))}
@@ -122,7 +126,7 @@ const NotesPage = () => {
         )}
 
         {/* Paginación */}
-        <div className="flex justify-center mt-24">
+        <div className="flex justify-center mt-12">
           {Array.from({ length: Math.ceil(filteredNotes.length / notesPerPage) }, (_, index) => (
             <button
               key={index}
