@@ -80,6 +80,29 @@ export async function GET(request) {
   }
 }
 
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const noteId = searchParams.get('id'); // Obtenemos el ID de la nota
+
+    if (!noteId) {
+      return NextResponse.json({ error: 'El ID de la nota es requerido' }, { status: 400 });
+    }
+
+    // Ejecutar la consulta para eliminar la nota
+    const [result] = await connection.execute('DELETE FROM notas WHERE id = ?', [noteId]);
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ error: 'Nota no encontrada o ya eliminada' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Nota eliminada correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar la nota:', error);
+    return NextResponse.json({ error: 'Error al eliminar la nota' }, { status: 500 });
+  }
+}
+
 // Función para parsear JSON de manera segura o devolver un array vacío si falla
 function parseJSONSafely(data) {
   try {

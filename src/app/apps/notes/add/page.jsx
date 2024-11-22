@@ -29,7 +29,11 @@ const EditNote = () => {
 
   // Configuración de useDropzone
   const { getRootProps, getInputProps } = useDropzone({
-    onDrop: (acceptedFiles) => setAttachments([...attachments, ...acceptedFiles]),
+    accept: { 'image/*': [] }, // Aceptar solo imágenes
+    onDrop: (acceptedFiles) => {
+      const filteredFiles = acceptedFiles.filter(file => file.size > 0); // Evitar archivos vacíos
+      setAttachments([...attachments, ...filteredFiles]);
+    },
   });
 
   const handleSaveNote = async () => {

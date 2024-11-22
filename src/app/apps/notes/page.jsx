@@ -27,8 +27,6 @@ const NotesPage = () => {
         }
         const data = await response.json();
 
-        console.log("Formatted notes with tags:", data);
-
         const formattedData = data.map(note => ({
           ...note,
           tags: Array.isArray(note.tags) ? note.tags : [],
@@ -45,6 +43,29 @@ const NotesPage = () => {
 
     fetchNotes();
   }, []);
+
+  const handleDelete = async (noteId) => {
+    const confirmDelete = confirm("¿Estás seguro de que deseas eliminar esta nota?");
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch(`/api/notes?id=${noteId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al eliminar la nota");
+      }
+
+      alert("Nota eliminada correctamente");
+
+      // Actualizar la lista de notas
+      setNotes(notes.filter((note) => note.id !== noteId));
+    } catch (error) {
+      console.error("Error al eliminar la nota:", error);
+      alert("Hubo un problema al eliminar la nota.");
+    }
+  };
 
   const filteredNotes = notes.filter(note =>
     note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -112,11 +133,19 @@ const NotesPage = () => {
 
                 <div className="px-4 py-2 flex justify-between items-center text-gray-400 text-xs">
                   <span>{new Date(note.created_at).toLocaleDateString('es-ES')}</span>
-                  <Link href={`/apps/notes/${note.id}`}>
-                    <button className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition text-xs">
-                      Ver Nota
+                  <div className="flex gap-2">
+                    <Link href={`/apps/notes/${note.id}`}>
+                      <button className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition text-xs">
+                        Ver Nota
+                      </button>
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(note.id)}
+                      className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition text-xs"
+                    >
+                      Eliminar
                     </button>
-                  </Link>
+                  </div>
                 </div>
               </div>
             ))}
