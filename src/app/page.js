@@ -9,7 +9,7 @@ import FloatingButton from '@/components/calendar/FloatingButton';
 import Modal from '@/components/calendar/Modal';
 import { useTranslation } from 'react-i18next';
 import FullCalendar from '@fullcalendar/react';
-import listPlugin from '@fullcalendar/list';
+import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 
 export default function Home() {
@@ -101,17 +101,17 @@ export default function Home() {
       <main className="flex flex-col justify-center items-center min-h-screen">       
 
         {/* Agregar calendario en la vista de lista */}
-        <div className="w-full max-w-4xl p-4 mt-16">
+        <div className="w-full max-w-5xl p-2 mt-16">
           <FullCalendar
-            plugins={[listPlugin, interactionPlugin]}
-            initialView="listMonth" // Vista de lista
+            plugins={[timeGridPlugin, interactionPlugin]} // Incluye dayGridPlugin
+            initialView="timeGridDay" // Cambia la vista inicial a "dayGridDay"
             events={calendarEvents}
-            height="auto"
-            contentHeight="auto"
+            height="800px"
+            contentHeight="700px"
             headerToolbar={{
-              start: 'prev,next today',
-              center: 'title',
-              end: 'listMonth',
+              start: 'prev,next today', // Botones para navegar
+              center: 'title', // Título del calendario
+              end: 'dayGridDay,timeGridDay', // Opciones de vista
             }}
             dateClick={() => handleFloatingButtonClick()}
           />

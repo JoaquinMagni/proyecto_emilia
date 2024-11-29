@@ -12,34 +12,73 @@ const EditNote = () => {
 
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
-  const [attachments, setAttachments] = useState([]);
+  const [images, setImages] = useState([]); // Estado para imágenes
+  const [files, setFiles] = useState([]); // Estado para archivos
   const [selectedIcon, setSelectedIcon] = useState("/notes/blog-img1.jpg");
   const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [predefinedTags, setPredefinedTags] = useState([
+    "Aerolíneas", "AFIP", "Bancos", "Claves en General", "Comidas",
+    "Cripto", "Direcciones", "Frases", "Italia", "THI", "Visa Australia"
+  ]); // Estado para tags dinámicos
 
   const dropdownRef = useRef(null); // Ref para el menú desplegable
 
-  // Lista de tags predeterminados
-  const predefinedTags = [
-    "Aerolíneas", "AFIP", "Bancos", "Claves en General", "Comidas", 
-    "Cripto", "Direcciones", "Frases", "Italia", "THI", "Visa Australia"
-  ];
+  // Obtener tags de la base de datos al cargar la página
+  useEffect(() => {
+    const fetchTagsFromDB = async () => {
+      try {
+        const response = await fetch('/api/tags');
+        if (!response.ok) throw new Error('Error al cargar tags');
+        const dbTags = await response.json();
+  
+        console.log("Tags desde la base de datos:", dbTags);
+  
+        setPredefinedTags((prevTags) => {
+          const mergedTags = [...new Set([...prevTags, ...dbTags])];
+          console.log("Tags fusionados:", mergedTags);
+          return mergedTags;
+        });
+      } catch (error) {
+        console.error('Error al cargar tags desde la base de datos:', error);
+      }
+    };
+  
+    fetchTagsFromDB();
+  }, []);
+  
 
-  // Configuración de useDropzone
+  // Configuración de useDropzone para imágenes
   const { getRootProps, getInputProps } = useDropzone({
     accept: { 'image/*': [] }, // Aceptar solo imágenes
     onDrop: (acceptedFiles) => {
       const filteredFiles = acceptedFiles.filter(file => file.size > 0); // Evitar archivos vacíos
-      setAttachments([...attachments, ...filteredFiles]);
+      setImages([...images, ...filteredFiles]); // Actualizar solo imágenes
+    },
+  });
+
+  // Configuración de useDropzone para archivos
+  const { getRootProps: getFileRootProps, getInputProps: getFileInputProps } = useDropzone({
+    accept: {
+      'application/pdf': [],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [],
+      'application/msword': [],
+      'application/vnd.ms-excel': [],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [],
+    },
+    onDrop: (acceptedFiles) => {
+      const filteredFiles = acceptedFiles.filter(file => file.size > 0); // Evitar archivos vacíos
+      setFiles([...files, ...filteredFiles]); // Actualizar solo archivos
     },
   });
 
   const handleSaveNote = async () => {
     try {
-      const uploadedFiles = await Promise.all(
-        attachments.map(async (file) => {
+      // Subir imágenes
+      const uploadedImages = await Promise.all(
+        images.map(async (file) => {
           const formData = new FormData();
           formData.append('file', file);
 
@@ -53,19 +92,41 @@ const EditNote = () => {
           }
 
           const data = await response.json();
-          return data.filePath;
+          return data.filePath; // Devuelve la ruta del archivo subido
         })
       );
 
+      // Subir archivos PDF, Word y Excel
+      const uploadedFiles = await Promise.all(
+        files.map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch('/api/uploadFiles', { // Endpoint para archivos
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error('Error al subir el archivo');
+          }
+
+          const data = await response.json();
+          return data.filePath; // Devuelve la ruta del archivo subido
+        })
+      );
+
+      // Crear los datos de la nota
       const noteData = {
         userId,
         title: noteTitle,
         content: noteContent,
-        attachments: uploadedFiles,
+        attachments: [...uploadedImages, ...uploadedFiles], // Combinar imágenes y archivos
         icon: selectedIcon,
         tags,
       };
 
+      // Guardar la nota
       const response = await fetch('/api/notes', {
         method: 'POST',
         headers: {
@@ -75,6 +136,12 @@ const EditNote = () => {
       });
 
       if (!response.ok) throw new Error('Error al guardar la nota');
+
+      // Actualizar predefinedTags con nuevos tags
+      setPredefinedTags((prevTags) =>
+        [...new Set([...prevTags, ...tags])]
+      );
+
       alert('Nota guardada con éxito');
       router.push('/apps/notes');
     } catch (error) {
@@ -85,7 +152,10 @@ const EditNote = () => {
 
   const handleAddTag = () => {
     if (newTag && !tags.includes(newTag)) {
-      setTags([...tags, newTag]);
+      setTags([...tags, newTag]); // Agregar el tag a la nota actual
+      if (!predefinedTags.includes(newTag)) {
+        setPredefinedTags((prevTags) => [...prevTags, newTag]); // Agregar a predefinedTags
+      }
       setNewTag('');
     }
     setShowDropdown(false);
@@ -116,11 +186,11 @@ const EditNote = () => {
 
   return (
     <>
-      <NavBar className="mb-32"/>
+      <NavBar className="mb-32" />
       <div className="flex justify-center space-x-4 mt-32 px-4">
         <div className="w-3/5 bg-gray-800 p-6 rounded-lg shadow-md">
           <h2 className="text-2xl font-bold mb-4 text-white">Nueva Nota</h2>
-          
+
           <div className="mb-4 p-4 bg-gray-700 rounded-md">
             <label className="text-white mb-2 block">Título</label>
             <input
@@ -133,9 +203,9 @@ const EditNote = () => {
 
             <label className="text-white mb-2 block">Contenido</label>
             <div className="bg-gray-600 rounded-md overflow-hidden h-80 flex flex-col">
-              <QuillEditor 
-                value={noteContent} 
-                onChange={setNoteContent} 
+              <QuillEditor
+                value={noteContent}
+                onChange={setNoteContent}
               />
             </div>
           </div>
@@ -147,10 +217,26 @@ const EditNote = () => {
               className="p-4 border-2 border-dashed rounded-md cursor-pointer bg-gray-600 text-white"
             >
               <input {...getInputProps()} />
+              <p>Arrastra y suelta imágenes aquí, o haz clic para seleccionar.</p>
+            </div>
+            <div className="mt-2">
+              {images.map((file, index) => (
+                <p key={index} className="text-gray-400">{file.name}</p>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-4 p-4 bg-gray-700 rounded-md">
+            <label className="text-white mb-2 block">Agregar Archivos</label>
+            <div
+              {...getFileRootProps()}
+              className="p-4 border-2 border-dashed rounded-md cursor-pointer bg-gray-600 text-white"
+            >
+              <input {...getFileInputProps()} />
               <p>Arrastra y suelta archivos aquí, o haz clic para seleccionar</p>
             </div>
             <div className="mt-2">
-              {attachments.map((file, index) => (
+              {files.map((file, index) => (
                 <p key={index} className="text-gray-400">{file.name}</p>
               ))}
             </div>
@@ -160,7 +246,7 @@ const EditNote = () => {
             onClick={handleSaveNote}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
           >
-            Guardar Nota
+            Crear Nota
           </button>
         </div>
 
@@ -213,7 +299,7 @@ const EditNote = () => {
             </div>
 
             {showDropdown && (
-              <ul className="absolute z-10 bg-gray-600 text-white w-96 rounded-md shadow-lg max-h-48 overflow-y-auto">
+              <ul className="absolute z-10 bg-gray-600 text-white w-96 rounded-md shadow-lg max-h-64 overflow-y-auto">
                 {predefinedTags
                   .filter((tag) => tag.toLowerCase().includes(newTag.toLowerCase()))
                   .map((tag, index) => (

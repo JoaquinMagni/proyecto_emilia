@@ -29,16 +29,12 @@ const NavBar = () => {
                 <li className="p-2 hover:bg-blue-400 dark:hover:bg-gray-600">
                   <a href="/apps/notes">Notes</a>
                 </li>
-                <li className="p-2 hover:bg-blue-400 dark:hover:bg-gray-600">
-                  <a href="/apps/email">Email</a>
-                </li>
               </ul>
             </div>
           )}
         </div>
         <a href="/apps/calendar" className="hover:text-blue-600 dark:hover:text-blue-300">Calendar</a>
         <a href="/apps/notes" className="hover:text-blue-600 dark:hover:text-blue-300">Notes</a>
-        <a href="/apps/email" className="hover:text-blue-600 dark:hover:text-blue-300">Email</a>
       </div>
 
       {/* Sección de usuario, idioma y tema */}

@@ -31,13 +31,21 @@ function CalendarComponent() {
 
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
 
+  const GOOGLE_COLOR = '#4285F4';
+  const MICROSOFT_COLOR = '#F25022';
+
   const fetchEvents = async () => {
     try {
       const response = await fetch(`/api/calendar?userId=${userId}`);
       if (!response.ok) throw new Error('Error al cargar eventos');
       const events = await response.json();
       if (Array.isArray(events)) {
-        setCalendarEvents(events);
+        const enhancedEvents = events.map(event => ({
+          ...event,
+          googleEvent: event.color === GOOGLE_COLOR, // Marca como evento de Google
+          microsoftEvent: event.color === MICROSOFT_COLOR, // Marca como evento de Microsoft
+        }));
+        setCalendarEvents(enhancedEvents);
       } else {
         throw new Error('La respuesta de la API no es un array');
       }
@@ -49,10 +57,19 @@ function CalendarComponent() {
   const transformGoogleEvent = (event) => ({
     id: event.id,
     title: event.summary || 'Sin título',
-    start: event.start?.dateTime || event.start?.date || '',  // Added null checks
+    start: event.start?.dateTime || event.start?.date || '',
     end: event.end?.dateTime || event.end?.date || '',
-    color: '#4285F4',
-    googleEvent: true,
+    color: '#4285F4', // Color predeterminado para Google
+    googleEvent: true, // Identificador de Google
+  });
+  
+  const transformMicrosoftEvent = (event) => ({
+    id: event.id,
+    title: event.subject || 'Sin título',
+    start: event.start?.dateTime || event.start?.date || '',
+    end: event.end?.dateTime || event.end?.date || '',
+    color: '#F25022', // Color predeterminado para Microsoft
+    microsoftEvent: true, // Identificador de Microsoft
   });
 
   useEffect(() => {
@@ -333,22 +350,45 @@ useEffect(() => {
           events={[...calendarEvents, ...iCalEvents]}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
-          eventContent={(eventInfo) => (
-            <div
-              className="event-box"
-              style={{
-                backgroundColor: eventInfo.event.backgroundColor,
-                color: 'white',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontWeight: '500',
-                width: '100%', // Para ocupar todo el espacio de la celda
-                textAlign: 'center',
-              }}
-            >
-              {eventInfo.event.title}
-            </div>
-          )}
+          eventContent={(eventInfo) => {
+            const isGoogle = eventInfo.event.extendedProps.googleEvent;
+            const isMicrosoft = eventInfo.event.extendedProps.microsoftEvent;
+          
+            return (
+              <div
+                className="event-box"
+                style={{
+                  backgroundColor: eventInfo.event.backgroundColor,
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontWeight: '500',
+                  textAlign: 'center',
+                  display: 'flex', // Alineación de ícono y texto
+                  alignItems: 'center',
+                  gap: '4px',
+                  width: '100%',
+                }}
+              >
+                {isGoogle && (
+                  <img
+                    src="/icon-google.png"
+                    alt="Google"
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                )}
+                {isMicrosoft && (
+                  <img
+                    src="/icon-microsoft.png"
+                    alt="Microsoft"
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                )}
+                <span>{eventInfo.event.title}</span>
+              </div>
+            );
+          }}
+          
           height="auto"
           contentHeight="auto"
         />

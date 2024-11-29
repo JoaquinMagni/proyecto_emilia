@@ -92,35 +92,70 @@ const NoteDetailPage = () => {
         {/* Línea divisoria */}
         <hr className="my-4 border-gray-600" />
 
-        {/* Sección de imágenes */}
+        {/* Sección de imágenes y archivos */}
         <div className="mt-8">
-          <h2 className="text-2xl font-bold text-white mb-4">Imágenes</h2>
+          <h2 className="text-2xl font-bold text-white mb-4">Imágenes y Archivos</h2>
           {attachments.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {attachments.map((image, index) => (
-                <div
-                  key={index}
-                  className="relative h-48 w-64 bg-gray-700 rounded-lg overflow-hidden cursor-pointer group"
-                  onClick={() => handleImageClick(image)}
-                >
-                  {/* Imagen */}
-                  <img
-                    src={image}
-                    alt={`Imagen ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => (e.target.src = '/images-notes/placeholder.jpg')} // Placeholder si falla la carga
-                  />
-                  {/* Overlay en hover */}
-                  <div className="absolute inset-0 bg-black bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <p className="text-white text-sm">Click para expandir.</p>
+              {attachments.map((attachment, index) => {
+                // Determinar si es imagen o archivo
+                const isImage = /\.(jpg|jpeg|png|gif)$/i.test(attachment);
+                const isPdf = /\.pdf$/i.test(attachment);
+                const isWord = /\.(doc|docx)$/i.test(attachment);
+                const isExcel = /\.(xls|xlsx)$/i.test(attachment);
+
+                // Miniatura predeterminada
+                let thumbnail = "/images-notes/placeholder.jpg";
+                if (isImage) thumbnail = attachment;
+                else if (isPdf) thumbnail = "/pdf.png";
+                else if (isWord) thumbnail = "/word.png";
+                else if (isExcel) thumbnail = "/excel.png";
+
+                // Extraer el nombre del archivo desde la URL
+                const fileName = attachment.split("/").pop();
+
+                return (
+                  <div
+                    key={index}
+                    className={`relative h-48 w-64 rounded-lg overflow-hidden group cursor-pointer ${
+                      isImage ? "bg-gray-700" : "bg-blue-500"
+                    }`}
+                    onClick={
+                      isImage
+                        ? () => handleImageClick(attachment) // Modal para imágenes
+                        : () => window.open(attachment, "_blank") // Abrir archivos en nueva pestaña
+                    }
+                  >
+                    {/* Miniatura */}
+                    <img
+                      src={thumbnail}
+                      alt={fileName}
+                      className={`w-full h-full ${
+                        isImage ? "object-cover" : "object-contain"
+                      }`} // Las imágenes se cubren, pero los archivos se contienen
+                      onError={(e) => (e.target.src = "/images-notes/placeholder.jpg")}
+                    />
+
+                    {/* Overlay en hover */}
+                    <div className="absolute inset-0 bg-black bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <p className="text-white text-sm">
+                        {isImage ? "Click para expandir." : "Click para descargar."}
+                      </p>
+                    </div>
+
+                    {/* Nombre del archivo */}
+                    <p className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white text-sm text-center py-1">
+                      {fileName}
+                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <p className="text-gray-400">Esta nota no tiene imágenes añadidas.</p>
+            <p className="text-gray-400">Esta nota no tiene archivos añadidos.</p>
           )}
         </div>
+
 
         {/* Modal para expandir imagen */}
         {modalImage && (
