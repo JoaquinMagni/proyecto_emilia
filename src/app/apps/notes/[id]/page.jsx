@@ -174,10 +174,20 @@ const NoteDetailPage = () => {
           </div>
         )}
 
-        {/* Fecha de creación */}
-        <p className="text-gray-400 text-sm mt-6 text-right">
-          {new Date(created_at).toLocaleDateString("es-ES")}
-        </p>
+        <div className="flex justify-between items-center mt-6">
+          {/* Botón Editar Nota */}
+          <button
+            onClick={() => router.push(`/apps/notes/edit/${id}`)}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
+          >
+            Editar Nota
+          </button>
+
+          {/* Fecha de creación */}
+          <p className="text-gray-400 text-sm">
+            {new Date(created_at).toLocaleDateString("es-ES")}
+          </p>
+        </div>
       </div>
     </>
   );

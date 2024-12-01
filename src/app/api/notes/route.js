@@ -68,7 +68,7 @@ export async function GET(request) {
         return note;
       });
 
-      console.log("Formatted notes with parsed tags:", formattedNotes);
+      //console.log("Formatted notes with parsed tags:", formattedNotes);
 
       return NextResponse.json(formattedNotes);
     } else {
@@ -103,10 +103,46 @@ export async function DELETE(request) {
   }
 }
 
+export async function PUT(request) {
+  try {
+    const { id, userId, title, content, attachments, icon, tags } = await request.json();
+
+    //console.log("Datos recibidos para actualizar:", { id, userId, title, content, attachments, icon, tags });
+
+
+    if (!id || !userId || !title || !content) {
+      return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
+    }
+
+    // Actualizar la nota en la base de datos
+    const [result] = await connection.execute(
+      'UPDATE notas SET title = ?, content = ?, attachments = ?, icon = ?, tags = ?, updated_at = NOW() WHERE id = ? AND userId = ?',
+      [
+        title,
+        content,
+        JSON.stringify(attachments), // Guardar los attachments como JSON
+        icon,
+        JSON.stringify(tags), // Guardar las etiquetas como JSON
+        id,
+        userId,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ error: 'Nota no encontrada o no se pudo actualizar' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Nota actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar la nota:', error);
+    return NextResponse.json({ error: 'Error al actualizar la nota' }, { status: 500 });
+  }
+}
+
 // Función para parsear JSON de manera segura o devolver un array vacío si falla
 function parseJSONSafely(data) {
   try {
-    console.log("Intentando parsear JSON:", data);
+    //console.log("Intentando parsear JSON:", data);
     return JSON.parse(data || '[]');
   } catch (e) {
     console.error('Error parsing JSON:', e);
