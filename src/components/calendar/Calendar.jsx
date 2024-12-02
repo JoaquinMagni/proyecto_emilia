@@ -19,6 +19,7 @@ function CalendarComponent() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showICalModal, setShowICalModal] = useState(false);
   const [calendarUrl, setCalendarUrl] = useState('');  
+  const [zoomedImage, setZoomedImage] = useState(null);
   const [eventData, setEventData] = useState({
     id: null,
     title: '',
@@ -28,6 +29,24 @@ function CalendarComponent() {
     endTime: '',
     color: '#ff9f89',
   });
+
+  const images = [
+    "/integrateIcal1.png",
+    "/integrateIcal2.png",
+    "/integrateIcal3.png",
+    "/integrateIcal4.jpg",
+  ];
+  const [currentImageIndex, setCurrentImageIndex] = useState(0); // Empieza con la primera imagen.  
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+  };
+  
+  const handlePreviousImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      (prevIndex - 1 + images.length) % images.length
+    );
+  };
 
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
 
@@ -316,6 +335,14 @@ const uniqueEvents = (existingEvents, newEvents) => {
   return newEvents.filter(event => !existingIds.has(event.id));
 };
 
+const steps = [
+  "1) Inicia sesión en tu Calendario de Google. 2) En Mis calendarios, en el menú de la izquierda, busque su cuenta de calendario y haga clic en los puntos suspensivos verticales (⋮).",
+  "3) Seleccione Configuración y compartir.",
+  "4) En 'Configuración del calendario', en el lado izquierdo de la pantalla, haga clic en Permisos de acceso y confirme que el calendario sea público.",
+  "5) En 'Configuración del calendario', haz clic en Integrar calendario y copia la URL en Dirección pública en formato iCal. Esta dirección es la que debemos pegar en el campo de abajo.",
+];
+
+
   
   
 useEffect(() => {
@@ -414,44 +441,97 @@ useEffect(() => {
         Añadir iCal URL
       </button>
 
-      {/* Modal para ingresar la URL de iCal */}
-      {showICalModal && (
-        <div 
-          className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => setShowICalModal(false)} // Close on outside click
-        >
-          <div
-            className="bg-white p-6 rounded-md w-full max-w-md relative" 
-            onClick={(e) => e.stopPropagation()} // Prevent click from closing modal if inside
-          >
-            <button 
-              onClick={() => setShowICalModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
-            <h2 className="text-lg font-semibold mb-4">Ingresar URL de iCal</h2>
-            <h2 className="text-lg font-semibold mb-4">Ve a tu calendario de Google y copia la URL de iCal</h2>
-            <input
-              type="text"
-              value={calendarUrl}
-              onChange={(e) => setCalendarUrl(e.target.value)}
-              placeholder="Ingrese su URL de iCal"
-              className="w-full p-2 border rounded mb-4"
-            />
+{/* Modal para ingresar la URL de iCal */}
+{showICalModal && (
+  <div 
+    className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
+    onClick={() => setShowICalModal(false)} // Cierra al hacer clic afuera
+  >
+    <div
+      className="bg-white p-6 rounded-md w-full max-w-2xl h-[85vh] overflow-y-auto relative"
+      onClick={(e) => e.stopPropagation()} // Previene cierre al hacer clic dentro
+    >
+      <button 
+        onClick={() => setShowICalModal(false)}
+        className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+      >
+        ✕
+      </button>
+
+      {/* Carrusel manual */}
+      <div className="mt-2">
+        <h2 className="text-lg font-semibold text-gray-800">Guía de integración:</h2>
+        {/* Paso correspondiente */}
+        <p className="text-lg font-semibold text-gray-600 text-center mt-4">{steps[currentImageIndex]}</p>
+        <div className="relative w-full h-[600px] flex items-center justify-center overflow-hidden">
+          {/* Flecha izquierda */}
+          {currentImageIndex > 0 && (
             <button
-              onClick={async () => {
-                await fetchICalEvents();
-                await saveICalEventsToDatabase();
-                setShowICalModal(false);
-              }}
-              className="bg-green-600 text-white px-4 py-2 rounded w-full"
+              onClick={handlePreviousImage}
+              className="absolute left-0 bg-gray-700 text-white px-4 py-2 rounded-full hover:bg-gray-600 focus:outline-none"
             >
-              Cargar Eventos
+              ←
             </button>
-          </div>
+          )}
+
+          {/* Imagen actual */}
+          <img
+            src={images[currentImageIndex]}
+            alt={`Guía paso ${currentImageIndex + 1}`}
+            className="w-auto h-auto max-w-full max-h-[80%] mx-auto rounded-md shadow-md object-contain cursor-zoom-in"
+            onClick={() => setZoomedImage(images[currentImageIndex])} // Hacer zoom al hacer clic
+          />
+
+          {/* Flecha derecha */}
+          {currentImageIndex < images.length - 1 && (
+            <button
+              onClick={handleNextImage}
+              className="absolute right-0 bg-gray-700 text-white px-4 py-2 rounded-full hover:bg-gray-600 focus:outline-none"
+            >
+              →
+            </button>
+          )}
         </div>
-      )}
+
+      </div>
+
+      <h2 className="text-lg font-semibold">Ingresa la URL de iCal:</h2>
+      {/* Input para ingresar la URL */}
+      <input
+        type="text"
+        value={calendarUrl}
+        onChange={(e) => setCalendarUrl(e.target.value)}
+        placeholder="Ingrese su URL de iCal"
+        className="w-full p-2 border rounded mb-4"
+      />
+      <button
+        onClick={async () => {
+          await fetchICalEvents();
+          await saveICalEventsToDatabase();
+          setShowICalModal(false);
+        }}
+        className="bg-green-600 text-white px-4 py-2 rounded w-full"
+      >
+        Cargar Eventos
+      </button>
+    </div>
+  </div>
+)}
+
+{/* Modal de zoom de imagen */}
+{zoomedImage && (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+    onClick={() => setZoomedImage(null)} // Cierra el zoom al hacer clic afuera
+  >
+    <img
+      src={zoomedImage}
+      alt="Imagen ampliada"
+      className="max-w-[90%] max-h-[90%] rounded-md shadow-lg object-contain cursor-zoom-out"
+      onClick={(e) => e.stopPropagation()} // Previene cierre al hacer clic en la imagen
+    />
+  </div>
+)}
 
 
       
