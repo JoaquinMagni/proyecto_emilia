@@ -43,29 +43,28 @@ const ChangeNote = () => {
         if (!response.ok) {
           throw new Error("Error al cargar la nota");
         }
-
+  
         const data = await response.json();
-
-        console.log("Content recibido:", data.content); // Debug para verificar el contenido recibido
-
+  
+        // Agregamos un console.log para verificar los datos recibidos
+        console.log("Datos recibidos de la API:", data);
+  
         setNoteTitle(data.title || "");
         setNoteContent(data.content || ""); // Asegúrate de que sea HTML
         setSelectedIcon(data.icon || "/notes/blog-img1.jpg");
         setTags(Array.isArray(data.tags) ? data.tags : []);
-        setImages(data.attachments?.filter((file) => /\.(jpg|jpeg|png|gif)$/i.test(file)) || []);
-        setFiles(
-          data.attachments?.filter((file) =>
-            /\.(pdf|doc|docx|xls|xlsx)$/i.test(file)
-          ) || []
-        );
+        setImages(data.attachments?.filter((file) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file)) || []);
+        setFiles(data.files || []); // Usamos data.files directamente
       } catch (error) {
         console.error("Error al cargar la nota:", error);
         alert("Hubo un problema al cargar la nota.");
       }
     };
-
+  
     fetchNote();
   }, [id]);
+  
+  
 
   // Configuración para Dropzone de imágenes
   const { getRootProps, getInputProps } = useDropzone({
@@ -91,13 +90,17 @@ const ChangeNote = () => {
     },
   });
 
-  // Guardar cambios en la nota
   const handleSaveChanges = async () => {
     try {
-      // Subir nuevas imágenes
+      // Obtener archivos existentes desde la API
+      const existingFiles = await fetch(`/api/notes?id=${id}`)
+        .then((res) => res.json())
+        .then((data) => data.files || []);
+  
+      // Subir nuevas imágenes y normalizar `attachments`
       const uploadedImages = await Promise.all(
         images.map(async (file) => {
-          if (typeof file === "string") return file; // Mantener imágenes existentes
+          if (typeof file === "string") return file; // Mantener imágenes existentes como strings
           const formData = new FormData();
           formData.append("file", file);
   
@@ -107,13 +110,23 @@ const ChangeNote = () => {
           });
   
           if (!response.ok) {
-            throw new Error("Error al subir la imagen");
+            console.error("Error al subir la imagen:", file.name);
+            return null; // Retornar null si la subida falla
           }
   
           const data = await response.json();
-          return data.filePath;
+          return data.filePath || null; // Retornar solo el path si está disponible
         })
       );
+  
+      // Filtrar imágenes válidas y normalizar
+      const validUploadedImages = uploadedImages.filter((path) => path !== null);
+      const normalizedAttachments = [
+        ...new Set([
+          ...(images.filter((img) => typeof img === "string") || []), // Imágenes existentes
+          ...validUploadedImages, // Nuevas imágenes subidas
+        ]),
+      ];
   
       // Subir nuevos archivos
       const uploadedFiles = await Promise.all(
@@ -128,20 +141,34 @@ const ChangeNote = () => {
           });
   
           if (!response.ok) {
-            throw new Error("Error al subir el archivo");
+            console.error("Error al subir el archivo:", file.name);
+            return null; // Retornar null si la subida falla
           }
   
           const data = await response.json();
-          return data.filePath;
+          return data.filePath || null; // Retornar solo el path si está disponible
         })
       );
   
+      // Filtrar archivos válidos
+      const validUploadedFiles = uploadedFiles.filter((path) => path !== null);
+  
+      // Combinar archivos existentes con los nuevos evitando duplicados
+      const combinedFiles = [
+        ...new Set([
+          ...existingFiles, // Archivos existentes desde la API
+          ...validUploadedFiles, // Nuevos archivos subidos
+        ]),
+      ];
+  
+      // Crear datos de la nota para enviar al servidor
       const noteData = {
-        id,             // Asegurarse de incluir el id
+        id, // ID de la nota
         userId,
         title: noteTitle,
         content: noteContent,
-        attachments: [...uploadedImages, ...uploadedFiles],
+        attachments: normalizedAttachments, // Imágenes normalizadas
+        files: combinedFiles, // Archivos actualizados sin duplicados
         icon: selectedIcon,
         tags,
       };
@@ -149,6 +176,7 @@ const ChangeNote = () => {
       // Log para depuración
       console.log("Datos enviados al servidor:", noteData);
   
+      // Actualizar la nota
       const response = await fetch(`/api/notes?id=${id}`, {
         method: "PUT",
         headers: {
@@ -166,6 +194,7 @@ const ChangeNote = () => {
       alert("Hubo un problema al guardar los cambios.");
     }
   };
+  
   
 
   // Manejar etiquetas
@@ -187,6 +216,14 @@ const ChangeNote = () => {
   const handleTagClick = (tag) => {
     setNewTag(tag);
     setShowDropdown(false);
+  };
+
+  const handleRemoveImage = (index) => {
+    setImages((prevImages) => prevImages.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveFile = (index) => {
+    setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
 
   // Cerrar el menú desplegable
@@ -235,12 +272,39 @@ const ChangeNote = () => {
               <input {...getInputProps()} />
               <p>Arrastra y suelta imágenes aquí, o haz clic para seleccionar.</p>
             </div>
-            <div className="mt-2">
-              {images.map((file, index) => (
-                <p key={index} className="text-gray-400">{typeof file === "string" ? file.split("/").pop() : file.name}</p>
-              ))}
+            <div className="mt-2 grid grid-cols-2 gap-4"> {/* Grid para mostrar miniaturas */}
+              {images.map((file, index) => {
+                const isImage = file?.type?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(file); // Verificar si es imagen
+
+                return isImage ? (
+                  <div key={index} className="relative group">
+                    {/* Imagen */}
+                    <img
+                      src={file.url || (typeof file === "string" ? file : URL.createObjectURL(file))}
+                      alt={file.name || `Image-${index}`}
+                      className="w-full h-48 object-cover rounded-md shadow-md cursor-pointer"
+                    />
+                    {/* Botón para eliminar */}
+                    <button
+                      onClick={() => handleRemoveImage(index)}
+                      className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ✕
+                    </button>
+                    {/* Nombre del archivo */}
+                    <p className="text-gray-400 mt-1 text-sm truncate">
+                      {typeof file === "string" ? file.split("/").pop() : file.name}
+                    </p>
+                  </div>
+                ) : (
+                  <div key={index} className="file-preview-container">
+                    <p className="text-gray-400">{typeof file === "string" ? file.split("/").pop() : file.name}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
+
 
           <div className="mb-4 p-4 bg-gray-700 rounded-md">
             <label className="text-white mb-2 block">Agregar Archivos</label>
@@ -249,14 +313,52 @@ const ChangeNote = () => {
               className="p-4 border-2 border-dashed rounded-md cursor-pointer bg-gray-600 text-white"
             >
               <input {...getFileInputProps()} />
-              <p>Arrastra y suelta archivos aquí, o haz clic para seleccionar</p>
+              <p>Arrastra y suelta archivos aquí, o haz clic para seleccionar.</p>
             </div>
-            <div className="mt-2">
-              {files.map((file, index) => (
-                <p key={index} className="text-gray-400">{typeof file === "string" ? file.split("/").pop() : file.name}</p>
-              ))}
+            <div className="mt-2 grid grid-cols-2 gap-4">
+              {files.map((file, index) => {
+                // Determinar si el archivo es una URL existente o un archivo recién subido
+                const fileName = typeof file === "string" ? file.split("/").pop() : file.name;
+                const isPdf = fileName.endsWith(".pdf");
+                const isWord = /\.(doc|docx)$/i.test(fileName);
+                const isExcel = /\.(xls|xlsx)$/i.test(fileName);
+                const isPowerPoint = /\.(ppt|pptx)$/i.test(fileName);
+                const isText = fileName.endsWith(".txt");
+
+                // Determinar la miniatura por tipo
+                const thumbnail = isPdf
+                  ? "/pdf.png"
+                  : isWord
+                  ? "/word.png"
+                  : isExcel
+                  ? "/excel.png"
+                  : isPowerPoint
+                  ? "/powerpoint.png"
+                  : isText
+                  ? "/notepad.png"
+                  : "/file-placeholder.png";
+
+                return (
+                  <div key={index} className="relative group flex flex-col items-center">
+                    {/* Miniatura */}
+                    <img src={thumbnail} alt={fileName} className="w-16 h-16" />
+                    {/* Nombre del archivo */}
+                    <p className="text-gray-400 text-sm mt-2 truncate">{fileName}</p>
+                    {/* Botón para eliminar archivo */}
+                    <button
+                      onClick={() => handleRemoveFile(index)}
+                      className="absolute top-0 right-0 bg-red-600 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
+
+
+
 
           <button
             onClick={handleSaveChanges}

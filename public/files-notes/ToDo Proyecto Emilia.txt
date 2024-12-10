@@ -1,0 +1,2 @@
+Hacer el paso a paso de la sincronizacion de calendario. | LISTO 
+Falta escribir el texto explicativo a cada imagen del carrusel solamente. | LIS

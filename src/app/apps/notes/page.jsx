@@ -12,6 +12,8 @@ const NotesPage = () => {
   const [searchTag, setSearchTag] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const notesPerPage = 6;
+  const [allTags, setAllTags] = useState([]);
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
 
   useEffect(() => {
     const fetchNotes = async () => {
@@ -88,6 +90,42 @@ const NotesPage = () => {
     setCurrentPage(pageNumber);
   };
 
+  useEffect(() => {
+    const fetchTagsFromDB = async () => {
+      try {
+        const response = await fetch('/api/tags');
+        if (!response.ok) throw new Error('Error al cargar tags');
+        const dbTags = await response.json();
+        const predefinedTags = [
+          "Aerolíneas", "AFIP", "Bancos", "Claves en General", "Comidas",
+          "Cripto", "Direcciones", "Frases", "Italia", "THI", "Visa Australia"
+        ];
+        const mergedTags = [...new Set([...predefinedTags, ...dbTags])];
+        setAllTags(mergedTags);
+      } catch (error) {
+        console.error('Error al cargar tags desde la base de datos:', error);
+      }
+    };
+  
+    fetchTagsFromDB();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        !event.target.closest('.tag-dropdown') && // Verifica clic fuera del menú
+        !event.target.closest('.toggle-dropdown') // Verifica clic fuera de la flecha
+      ) {
+        setShowTagDropdown(false);
+      }
+    };
+  
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <>
       <NavBar className="mb-32" />
@@ -102,15 +140,38 @@ const NotesPage = () => {
           </Link>
 
           <div className="flex space-x-4">
-            <div className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md">
+            <div className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md relative">
               <img src="/filter.png" alt="Filtro" className="h-5 w-5 mr-2" />
               <input
                 type="text"
                 placeholder="Buscar por etiquetas..."
                 value={searchTag}
                 onChange={(e) => setSearchTag(e.target.value)}
+                onFocus={() => setShowTagDropdown(true)}
                 className="bg-gray-700 text-white placeholder-gray-400 focus:outline-none flex-grow"
               />
+              <span
+                onClick={() => setShowTagDropdown((prev) => !prev)}
+                className="cursor-pointer ml-2 toggle-dropdown"
+              >
+                ▼
+              </span>
+              {showTagDropdown && (
+                <ul className="absolute left-0 top-full z-10 bg-gray-600 text-white w-full rounded-md shadow-lg max-h-64 overflow-y-auto mt-1 tag-dropdown">
+                  {allTags.map((tag, index) => (
+                    <li
+                      key={index}
+                      onClick={() => {
+                        setSearchTag(tag);
+                        setShowTagDropdown(false);
+                      }}
+                      className="px-4 py-2 cursor-pointer hover:bg-gray-500"
+                    >
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-md">

@@ -8,6 +8,7 @@ import Modal from './Modal';
 import NavBar from '../NavBar';
 import FloatingButton from './FloatingButton';
 import Notification from '../Notification';
+import CalendarIntegrationButton from './CalendarIntegrationButton';
 import '../../app/globals.css';
 
 function CalendarComponent() {
@@ -17,9 +18,7 @@ function CalendarComponent() {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [showICalModal, setShowICalModal] = useState(false);
   const [calendarUrl, setCalendarUrl] = useState('');  
-  const [zoomedImage, setZoomedImage] = useState(null);
   const [eventData, setEventData] = useState({
     id: null,
     title: '',
@@ -29,24 +28,7 @@ function CalendarComponent() {
     endTime: '',
     color: '#ff9f89',
   });
-
-  const images = [
-    "/integrateIcal1.png",
-    "/integrateIcal2.png",
-    "/integrateIcal3.png",
-    "/integrateIcal4.jpg",
-  ];
-  const [currentImageIndex, setCurrentImageIndex] = useState(0); // Empieza con la primera imagen.  
-
-  const handleNextImage = () => {
-    setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
-  };
-  
-  const handlePreviousImage = () => {
-    setCurrentImageIndex((prevIndex) => 
-      (prevIndex - 1 + images.length) % images.length
-    );
-  };
+  const [eventColor, setEventColor] = useState(''); // Añade esto junto con otros estados
 
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
 
@@ -72,24 +54,6 @@ function CalendarComponent() {
       console.error('Error al cargar eventos:', error);
     }
   };
-
-  const transformGoogleEvent = (event) => ({
-    id: event.id,
-    title: event.summary || 'Sin título',
-    start: event.start?.dateTime || event.start?.date || '',
-    end: event.end?.dateTime || event.end?.date || '',
-    color: '#4285F4', // Color predeterminado para Google
-    googleEvent: true, // Identificador de Google
-  });
-  
-  const transformMicrosoftEvent = (event) => ({
-    id: event.id,
-    title: event.subject || 'Sin título',
-    start: event.start?.dateTime || event.start?.date || '',
-    end: event.end?.dateTime || event.end?.date || '',
-    color: '#F25022', // Color predeterminado para Microsoft
-    microsoftEvent: true, // Identificador de Microsoft
-  });
 
   useEffect(() => {
     if (!userId) {
@@ -276,12 +240,6 @@ const convertDateToMySQLFormat = (dateString) => {
     }
   };
 
-  // Function to handle opening the iCal modal
-  const handleOpenICalModal = async () => {
-    await fetchICalUrl(); // Fetch the URL before opening the modal
-    setShowICalModal(true);
-  };
-
 const verifyAndAddICalEvents = async () => {
   if (!calendarUrl) {
     console.log('No iCal URL found.');
@@ -335,27 +293,56 @@ const uniqueEvents = (existingEvents, newEvents) => {
   return newEvents.filter(event => !existingIds.has(event.id));
 };
 
-const steps = [
+const googleGuideSteps = [
   "1) Inicia sesión en tu Calendario de Google. 2) En Mis calendarios, en el menú de la izquierda, busque su cuenta de calendario y haga clic en los puntos suspensivos verticales (⋮).",
   "3) Seleccione Configuración y compartir.",
-  "4) En 'Configuración del calendario', en el lado izquierdo de la pantalla, haga clic en Permisos de acceso y confirme que el calendario sea público.",
+  "4) En 'Configuración del calendario', en el lado izquierdo de la pantalla, haga clic en Permisos de acceso y confirme que el calendario sea público. Sus datos continuaán siendo privados, esto solamente significa que nuestra app pueda acceder a ellos.",
   "5) En 'Configuración del calendario', haz clic en Integrar calendario y copia la URL en Dirección pública en formato iCal. Esta dirección es la que debemos pegar en el campo de abajo.",
 ];
 
+const googleImages = [
+  "/integrateIcal1.png",
+  "/integrateIcal2.png",
+  "/integrateIcal3.png",
+  "/integrateIcal4.jpg",
+];
 
-  
+
+const microsoftGuideSteps = [
+  "1) En nuestra vista principal del calendario de Outlook, presionamos el ícono de Configuraciones.",
+  "2) Seleccionar la sección de 'Calendario'.",
+  "3) Seleccionar 'Calendarios compartidos' y copiar la segunda URL, esta URL es la dirección que debemos pegar en nuestra app."
+];
+
+const microsoftImages = [
+  "/integratemicrosoft.jpg",
+  "/integratemicrosoft2.jpg",
+  "/integratemicrosoft3.jpg",
+];
+
+const handleOpenGoogleModal = (url, color) => {
+  console.log('URL recibida:', url);
+  setCalendarUrl(url);
+  setEventColor(color); // Guarda el color
+};
+
+const handleOpenMicrosoftModal = (url, color) => {
+  console.log('URL recibida:', url);
+  setCalendarUrl(url);
+  setEventColor(color); // Guarda el color
+};
   
 useEffect(() => {
   const initialize = async () => {
+    if (!calendarUrl) return; // Asegúrate de que la URL esté disponible
     await fetchICalUrl();
-    // Solo carga y verifica eventos si `calendarUrl` está disponible y no hay eventos ya cargados
-    if (calendarUrl && iCalEvents.length === 0) {
+    if (iCalEvents.length === 0) {
       await verifyAndAddICalEvents();
     }
   };
 
   initialize();
-}, []); // Quita `calendarUrl` de las dependencias para evitar recargar múltiples veces
+}, [calendarUrl]); // Añade `calendarUrl` como dependencia
 
   
 
@@ -434,106 +421,23 @@ useEffect(() => {
       )}
       <FloatingButton onClick={handleFloatingButtonClick} />
 
-      <button
-        onClick={handleOpenICalModal}
-        className="bg-blue-600 text-white mb-2 px-4 py-2 rounded-full flex items-center justify-center space-x-2 shadow-md hover:bg-blue-700 hover:shadow-lg transition-all duration-200 ease-in-out mx-auto w-1/3"
-      >
-        Añadir iCal URL
-      </button>
-
-{/* Modal para ingresar la URL de iCal */}
-{showICalModal && (
-  <div 
-    className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
-    onClick={() => setShowICalModal(false)} // Cierra al hacer clic afuera
-  >
-    <div
-      className="bg-white p-6 rounded-md w-full max-w-2xl h-[85vh] overflow-y-auto relative"
-      onClick={(e) => e.stopPropagation()} // Previene cierre al hacer clic dentro
-    >
-      <button 
-        onClick={() => setShowICalModal(false)}
-        className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-      >
-        ✕
-      </button>
-
-      {/* Carrusel manual */}
-      <div className="mt-2">
-        <h2 className="text-lg font-semibold text-gray-800">Guía de integración:</h2>
-        {/* Paso correspondiente */}
-        <p className="text-lg font-semibold text-gray-600 text-center mt-4">{steps[currentImageIndex]}</p>
-        <div className="relative w-full h-[600px] flex items-center justify-center overflow-hidden">
-          {/* Flecha izquierda */}
-          {currentImageIndex > 0 && (
-            <button
-              onClick={handlePreviousImage}
-              className="absolute left-0 bg-gray-700 text-white px-4 py-2 rounded-full hover:bg-gray-600 focus:outline-none"
-            >
-              ←
-            </button>
-          )}
-
-          {/* Imagen actual */}
-          <img
-            src={images[currentImageIndex]}
-            alt={`Guía paso ${currentImageIndex + 1}`}
-            className="w-auto h-auto max-w-full max-h-[80%] mx-auto rounded-md shadow-md object-contain cursor-zoom-in"
-            onClick={() => setZoomedImage(images[currentImageIndex])} // Hacer zoom al hacer clic
-          />
-
-          {/* Flecha derecha */}
-          {currentImageIndex < images.length - 1 && (
-            <button
-              onClick={handleNextImage}
-              className="absolute right-0 bg-gray-700 text-white px-4 py-2 rounded-full hover:bg-gray-600 focus:outline-none"
-            >
-              →
-            </button>
-          )}
-        </div>
-
-      </div>
-
-      <h2 className="text-lg font-semibold">Ingresa la URL de iCal:</h2>
-      {/* Input para ingresar la URL */}
-      <input
-        type="text"
-        value={calendarUrl}
-        onChange={(e) => setCalendarUrl(e.target.value)}
-        placeholder="Ingrese su URL de iCal"
-        className="w-full p-2 border rounded mb-4"
+      <CalendarIntegrationButton
+        onClick={handleOpenGoogleModal}
+        logoSrc="/icon-google.png"
+        buttonText="Añadir Calendario Google"
+        guideSteps={googleGuideSteps}
+        images={googleImages}
+        eventColor="#4285F4" // Color para Google
       />
-      <button
-        onClick={async () => {
-          await fetchICalEvents();
-          await saveICalEventsToDatabase();
-          setShowICalModal(false);
-        }}
-        className="bg-green-600 text-white px-4 py-2 rounded w-full"
-      >
-        Cargar Eventos
-      </button>
-    </div>
-  </div>
-)}
 
-{/* Modal de zoom de imagen */}
-{zoomedImage && (
-  <div
-    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
-    onClick={() => setZoomedImage(null)} // Cierra el zoom al hacer clic afuera
-  >
-    <img
-      src={zoomedImage}
-      alt="Imagen ampliada"
-      className="max-w-[90%] max-h-[90%] rounded-md shadow-lg object-contain cursor-zoom-out"
-      onClick={(e) => e.stopPropagation()} // Previene cierre al hacer clic en la imagen
-    />
-  </div>
-)}
-
-
+      <CalendarIntegrationButton
+        onClick={handleOpenMicrosoftModal}
+        logoSrc="/icon-microsoft.png"
+        buttonText="Añadir Calendario Microsoft"
+        guideSteps={microsoftGuideSteps}
+        images={microsoftImages}
+        eventColor="#F25022" // Color para Microsoft
+      />
       
       {notificationVisible && (
         <Notification

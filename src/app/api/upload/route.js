@@ -3,13 +3,12 @@ import path from 'path';
 
 export const config = {
   api: {
-    bodyParser: false, // Desactivar bodyParser para manejar datos binarios
+    bodyParser: false,
   },
 };
 
 export async function POST(req) {
   try {
-    // Obtener boundary del Content-Type
     const contentType = req.headers.get('content-type') || '';
     if (!contentType.includes('boundary=')) {
       throw new Error('Content-Type no contiene boundary');
@@ -44,13 +43,14 @@ export async function POST(req) {
     const fileName = fileNameMatch[1];
     const filePath = path.join(uploadDir, fileName);
 
-    // Eliminar los bytes adicionales del final del archivo
-    const contentBuffer = Buffer.from(content, 'binary').slice(0, -4); // Eliminar "--\r\n"
-
-    // Guardar el archivo en el sistema de archivos
+    // Guardar el archivo sin cortar bytes
+    const contentBuffer = Buffer.from(content.trim(), 'binary');
     fs.writeFileSync(filePath, contentBuffer);
 
-    // Responder con la ruta del archivo
+    // Verificar si el archivo se guardó correctamente
+    const savedBuffer = fs.readFileSync(filePath);
+    console.log("Tamaño del archivo guardado:", savedBuffer.length);
+
     return new Response(
       JSON.stringify({ success: true, filePath: `/images-notes/${fileName}` }),
       {
