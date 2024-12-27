@@ -1,25 +1,81 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import EmojiPicker from 'emoji-picker-react';
 
 const Modal = ({ eventData, setEventData, handleSaveEvent, handleDeleteEvent, closeModal, selectedEvent }) => {
-  const [selectedColor, setSelectedColor] = useState(eventData?.color || '#ff9f89'); // Color predeterminado
+  const [selectedColor, setSelectedColor] = useState(eventData?.color || '#ff9f89');
+  const [carpetas, setCarpetas] = useState([]);
+  const [selectedCarpeta, setSelectedCarpeta] = useState('');
+  const [newCarpeta, setNewCarpeta] = useState('');
+
+  // State for emoji picker
+  const [showTitleEmojiPicker, setShowTitleEmojiPicker] = useState(false);
+  const titleEmojiPickerRef = useRef(null);
+
+  // Predefined folders
+  const predefinedCarpetas = ["Universidad", "Salud", "Desarrollo personal", "Deportes", "Biblioteca"];
+
+  useEffect(() => {
+    const fetchCarpetas = async () => {
+      try {
+        const response = await fetch('/api/carpetas');
+        if (!response.ok) throw new Error('Error fetching folders');
+        const data = await response.json();
+        
+        // Filter out any folders from the database that are already in predefinedCarpetas
+        const uniqueDbCarpetas = data.filter(carpeta => !predefinedCarpetas.includes(carpeta));
+        
+        // Combine predefined folders with unique folders from database
+        setCarpetas([...predefinedCarpetas, ...uniqueDbCarpetas]);
+      } catch (error) {
+        console.error('Error fetching folders:', error);
+      }
+    };
+
+    fetchCarpetas();
+  }, []);
 
   useEffect(() => {
     if (selectedEvent) {
-      setSelectedColor(selectedEvent.backgroundColor || '#ff9f89'); // Verificación de color
+      setSelectedColor(selectedEvent.backgroundColor || '#ff9f89');
+      setSelectedCarpeta(eventData.carpeta || '');
     }
   }, [selectedEvent]);
 
-  // Manejar cambios en los inputs del modal
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEventData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Manejar selección de color
   const handleColorSelection = (color) => {
     setSelectedColor(color);
     setEventData((prev) => ({ ...prev, color }));
   };
+
+  useEffect(() => {
+    setEventData((prev) => ({ ...prev, carpeta: selectedCarpeta }));
+  }, [selectedCarpeta]);
+
+  const handleEmojiClick = (emojiObject) => {
+    setEventData((prev) => ({ ...prev, title: prev.title + emojiObject.emoji }));
+  };
+
+  const toggleEmojiPicker = () => {
+    setShowTitleEmojiPicker((prev) => !prev);
+  };
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (titleEmojiPickerRef.current && !titleEmojiPickerRef.current.contains(event.target)) {
+        setShowTitleEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
@@ -27,26 +83,38 @@ const Modal = ({ eventData, setEventData, handleSaveEvent, handleDeleteEvent, cl
         <h2 className="text-2xl mb-4">{selectedEvent ? 'Update Event' : 'Add Event'}</h2>
 
         <label htmlFor="title" className="block text-gray-700 mb-2">Título del Evento</label>
-        <input
-          type="text"
-          name="title"
-          id="title"
-          placeholder="Enter event title"
-          value={eventData?.title || ''} // Usa el operador ? para evitar errores
-          onChange={handleInputChange}
-          className="w-full p-2 mb-4 border rounded"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            name="title"
+            id="title"
+            placeholder="Enter event title"
+            value={eventData?.title || ''}
+            onChange={handleInputChange}
+            className="w-full p-2 mb-4 border rounded"
+          />
+          <span
+            onClick={toggleEmojiPicker}
+            className="absolute right-2 top-2 cursor-pointer"
+          >
+            😊
+          </span>
+          {showTitleEmojiPicker && (
+            <div ref={titleEmojiPickerRef} className="absolute z-10 top-10 right-0">
+              <EmojiPicker onEmojiClick={handleEmojiClick} />
+            </div>
+          )}
+        </div>
 
         <label htmlFor="startDate" className="block text-gray-700 mb-2">Start Date</label>
         <input
           type="date"
           name="startDate"
           id="startDate"
-          value={eventData?.startDate || ''}  // Agregar operador opcional
+          value={eventData?.startDate || ''}
           onChange={handleInputChange}
           className="w-full p-2 mb-4 border rounded"
         />
-
 
         <label htmlFor="endDate" className="block text-gray-700 mb-2">End Date</label>
         <input
@@ -78,10 +146,50 @@ const Modal = ({ eventData, setEventData, handleSaveEvent, handleDeleteEvent, cl
           className="w-full p-2 mb-4 border rounded"
         />
 
-        <div className="flex justify-between items-center mb-4">
+        <label htmlFor="carpeta" className="block text-gray-700 mb-2">Carpeta</label>
+        <select
+          name="carpeta"
+          id="carpeta"
+          value={selectedCarpeta}
+          onChange={(e) => setSelectedCarpeta(e.target.value)}
+          className="w-full p-2 mb-4 border rounded"
+        >
+          {carpetas.map((carpeta) => (
+            <option key={carpeta} value={carpeta}>{carpeta}</option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          placeholder="Nueva carpeta"
+          value={newCarpeta}
+          onChange={(e) => setNewCarpeta(e.target.value)}
+          className="w-full p-2 mb-4 border rounded"
+        />
+        <button
+          onClick={() => {
+            if (newCarpeta.trim()) {  
+              const normalizedNewCarpeta = newCarpeta.trim();
+              const folderExists = carpetas.some(
+                carpeta => carpeta.toLowerCase() === normalizedNewCarpeta.toLowerCase()
+              );
+              
+              if (!folderExists) {
+                setCarpetas(prev => [...prev, normalizedNewCarpeta]);
+                setSelectedCarpeta(normalizedNewCarpeta);
+              }
+              setNewCarpeta('');
+            }
+          }}
+          className="bg-green-500 text-white p-2 rounded"
+        >
+          Añadir Carpeta
+        </button>
+
+        <div className="flex justify-between items-center mb-4 mt-4">
           <label>Event Color:</label>
           <div className="flex space-x-2">
-            {['#ff9f89', '#3a87ad', '#f56954', '#f39c12', '#00a65a'].map((color) => (
+            {['#ff9f89', '#3a87ad', '#a9a9a9', '#f39c12', '#00a65a'].map((color) => (
               <button
                 key={color}
                 className={`w-6 h-6 rounded-full`}

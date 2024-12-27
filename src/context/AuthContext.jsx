@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const pathname = usePathname(); // Obtenemos la ruta actual
 
   // Definir rutas públicas que no requieren autenticación
-  const publicRoutes = ["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/activate"];
+  const publicRoutes = ["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/activate", "/auth/new-password"];
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");

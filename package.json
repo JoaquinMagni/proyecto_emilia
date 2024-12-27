@@ -40,6 +40,7 @@
     "react-quill": "^2.0.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.14",
     "postcss": "^8",

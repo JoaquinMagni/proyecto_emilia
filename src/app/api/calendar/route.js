@@ -26,9 +26,9 @@ export async function GET(request) {
 
 // Crear o actualizar un evento
 export async function POST(request) {
-  const { userId, title, start, end, color, id } = await request.json();
+  const { userId, title, start, end, color, carpeta, id } = await request.json();
 
-  if (!userId || !title || !start || !end || !color) {
+  if (!userId || !title || !start || !end || !color || !carpeta) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
   }
 
@@ -36,18 +36,18 @@ export async function POST(request) {
     if (id) {
       // Actualizar evento existente
       const [result] = await connection.execute(
-        'UPDATE eventos_calendario SET title = ?, start = ?, end = ?, color = ? WHERE id = ? AND userId = ?',
-        [title, start, end, color, id, userId]
+        'UPDATE eventos_calendario SET title = ?, start = ?, end = ?, color = ?, carpeta = ? WHERE id = ? AND userId = ?',
+        [title, start, end, color, carpeta, id, userId]
       );
       if (result.affectedRows === 0) {
         return NextResponse.json({ error: 'Evento no encontrado o no autorizado' }, { status: 404 });
       }
       return NextResponse.json({ success: true, message: 'Evento actualizado correctamente' });
     } else {
-      // Crear nuevo evento (el id se generará automáticamente)
+      // Crear nuevo evento
       const [result] = await connection.execute(
-        'INSERT INTO eventos_calendario (userId, title, start, end, color) VALUES (?, ?, ?, ?, ?)',
-        [userId, title, start, end, color]
+        'INSERT INTO eventos_calendario (userId, title, start, end, color, carpeta) VALUES (?, ?, ?, ?, ?, ?)',
+        [userId, title, start, end, color, carpeta]
       );
       const newEventId = result.insertId;
       return NextResponse.json({ success: true, id: newEventId, message: 'Evento creado correctamente' });
@@ -57,6 +57,30 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Error al guardar evento' }, { status: 500 });
   }
 }
+
+// Actualizar un evento
+export async function PUT(request) {
+  const { userId, title, start, end, color, carpeta, id } = await request.json();
+
+  if (!userId || !title || !start || !end || !color || !carpeta || !id) {
+    return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
+  }
+
+  try {
+    const [result] = await connection.execute(
+      'UPDATE eventos_calendario SET title = ?, start = ?, end = ?, color = ?, carpeta = ? WHERE id = ? AND userId = ?',
+      [title, start, end, color, carpeta, id, userId]
+    );
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ error: 'Evento no encontrado o no autorizado' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, message: 'Evento actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar evento:', error);
+    return NextResponse.json({ error: 'Error al actualizar evento' }, { status: 500 });
+  }
+}
+
 
 // Eliminar evento
 export async function DELETE(request) {
@@ -76,28 +100,5 @@ export async function DELETE(request) {
   } catch (error) {
     console.error('Error al eliminar evento:', error);
     return NextResponse.json({ error: 'Error al eliminar evento' }, { status: 500 });
-  }
-}
-
-// Actualizar un evento
-export async function PUT(request) {
-  const { userId, title, start, end, color, id } = await request.json();
-
-  if (!userId || !title || !start || !end || !color || !id) {
-    return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
-  }
-
-  try {
-    const [result] = await connection.execute(
-      'UPDATE eventos_calendario SET title = ?, start = ?, end = ?, color = ? WHERE id = ? AND userId = ?',
-      [title, start, end, color, id, userId]
-    );
-    if (result.affectedRows === 0) {
-      return NextResponse.json({ error: 'Evento no encontrado o no autorizado' }, { status: 404 });
-    }
-    return NextResponse.json({ success: true, message: 'Evento actualizado correctamente' });
-  } catch (error) {
-    console.error('Error al actualizar evento:', error);
-    return NextResponse.json({ error: 'Error al actualizar evento' }, { status: 500 });
   }
 }

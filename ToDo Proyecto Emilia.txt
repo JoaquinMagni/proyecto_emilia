@@ -1,0 +1,67 @@
+Hacer el paso a paso de la sincronizacion de calendario. | LISTO 
+Falta escribir el texto explicativo a cada imagen del carrusel solamente. | LISTO
+
+Agregar miniatura a los eventos que vengan de Google o Microsoft. | LISTO 
+(Recordar que al agregar los eventos a nuestro calendario, a los eventos de Google se les asigna un color específico, y a los de Microsoft otro.)
+Luego, al renderizar los eventos  en nuestro calendario, si tiene el color específico de Microsoft o Google, les agrega el PNG que viene de la carpeta /public. | LISTO
+
+Revisar handleSaveNote | LISTO
+
+Crear la vista de Editar Nota. | LISTO
+
+Filtro para las etiquetas. Deben agregarse las etiquetas nuevas al arreglo de etiquetas predefinidas. | LISTO
+
+El buscador no debe buscar por etiqueta, solo por titulo y contenido. | LISTO
+
+El boton para editar nota no debe estar en la miniatura de la nota. Debe estar en apps/notes/[id] | LISTO
+
+Quitar seccion email. | LISTO
+
+Modificar la vista de la seccion Home de "list" a "day". | LISTO
+
+Revisar la paginación en la seccion apps/notes. | LISTO
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Para probar la funcionalidad de las notas, crear una nota con varios formatos de imagen. | LISTO
+Luego editarla e intentar añadir otra imagen. | LISTO
+Volver a seccion de notas. | LISTO
+Volver a editar la misma nota. Eliminar la imagen que se añadió u otra.| LISTO
+Volver a revisar la nota. | LISTO
+
+Hacer lo mismo pero con una nota con archivos.| LISTO 
+
+Hacer lo mismo pero con una nota mixta. | LISTO
+
+------------------------------------------------------------------------------------------------------------------------------------
+1) En la guia de integración, aclarar en el punto 4 que los datos solo se compartiran con la aplicación, no a todo el mundo. | LISTO
+ |
+2) Cambiar boton de Integrar calendario. Debe ser un boton para integrar con Google, que solamente tenga el logo de Google,
+   y que al clickearse se abra el modal explicativo paso a paso de como integrarlo. Lo mismo con Office y Apple. Serían 3 botones.
+   REVISAR PORQUE NO ESTA AÑADIENDO LOS EVENTOS DE MICROSOFT (Revisar lo de IOS) | LISTO
+
+4) En el filtro de etiquetas, debe mostrar todas las etiquetas existentes para que el usuario seleccione una. | LISTO
+
+6) Integrar EMOJIS (emoji picker react) en la seccion de notas para titulo y contenido. | LISTO
+
+7) Integrar en el calendario un nuevo campo OBLIGATORIO que sea para la asignación de carpetas. | LISTO
+
+----------------------------------------------------------------------------------------------------------------------------
+19/12/2024
+
+1) Revisar el envio de email de recupero de contraseña.  |  Agregar seguridad en el envio de email. 
+                                                            Debe mostrar siempre la alerta de que se envio el email.
+                                                            Solo debe enviar el email si el email coincide con el de la base de datos.
+
+2) La URL de iCal debe estar siempre visible en la seccion de integración.
+
+3) Revisar la configuración del dropzone para que reciba archivos .txt | (REVISAR)
+
+4) Crear una nueva vista para la seccion de eventos. Debe ser una url nueva dentro de apps.
+
+5) Integrar en el calendario la opcion para repetir un evento. Revisar las opciones en el archivo de Proyecto Emilia.
+
+6) Cambiar el campo EndDate por el sistema de repeticiones de eventos. (Similares a Google Calendar) 
+   BASARME EN EL PUNTO  DEL ARCHIVO PROYECTO EMILIA.
+

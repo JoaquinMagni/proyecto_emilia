@@ -69,5 +69,15 @@
     "welcomeTitle": "Welcome to the main page",
     "examplePageDescription": "This is an example page where you can change the language and theme between light and dark.",
     "themeToggleInstruction": "Try the theme toggle in the upper right corner to see the change from light to dark mode."
+  },
+  "newPassword": {
+  "title": "Set a New Password",
+  "description": "Please enter your new password below.",
+  "password": "New Password",
+  "confirmPassword": "Confirm New Password",
+  "submit": "Update Password",
+  "passwordPlaceholder": "Enter your new password",
+  "confirmPasswordPlaceholder": "Confirm your new password",
+  "altIllustration": "Illustration for setting a new password"
   }
 }

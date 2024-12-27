@@ -18,7 +18,7 @@ function CalendarPage() {
     }, [router]);
 
     return (
-        <div>
+        <div style={{ position: 'relative', zIndex: 1 }}>
             <Calendar />
         </div>
     );

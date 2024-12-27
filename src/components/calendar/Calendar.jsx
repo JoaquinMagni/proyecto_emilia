@@ -19,6 +19,7 @@ function CalendarComponent() {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [calendarUrl, setCalendarUrl] = useState('');  
+  const [selectedCarpeta, setSelectedCarpeta] = useState('');
   const [eventData, setEventData] = useState({
     id: null,
     title: '',
@@ -28,12 +29,13 @@ function CalendarComponent() {
     endTime: '',
     color: '#ff9f89',
   });
-  const [eventColor, setEventColor] = useState(''); // Añade esto junto con otros estados
-
+  
+  const [calendarUrls, setCalendarUrls] = useState({});
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
 
   const GOOGLE_COLOR = '#4285F4';
-  const MICROSOFT_COLOR = '#F25022';
+  const MICROSOFT_COLOR = '#F25022';  
+  const APPLE_COLOR = '#FF2D55';  
 
   const fetchEvents = async () => {
     try {
@@ -45,6 +47,8 @@ function CalendarComponent() {
           ...event,
           googleEvent: event.color === GOOGLE_COLOR, // Marca como evento de Google
           microsoftEvent: event.color === MICROSOFT_COLOR, // Marca como evento de Microsoft
+          appleEvent: event.color === APPLE_COLOR, // Marca como evento de Apple
+          carpeta: event.carpeta, // Asegúrate de incluir esto
         }));
         setCalendarEvents(enhancedEvents);
       } else {
@@ -70,6 +74,7 @@ function CalendarComponent() {
       start: `${eventData.startDate}T${eventData.startTime || '00:00'}:00`,
       end: `${eventData.endDate}T${eventData.endTime || '23:59'}:00`,
       color: eventData.color,
+      carpeta: eventData.carpeta, // Añadir carpeta aquí
       userId,
     };
 
@@ -133,7 +138,9 @@ function CalendarComponent() {
       startTime: event.start ? event.start.toTimeString().slice(0, 5) : '',
       endTime: event.end ? event.end.toTimeString().slice(0, 5) : '',
       color: event.backgroundColor || '#ff9f89',
+      carpeta: event.extendedProps.carpeta || '', // Asegúrate de que esto esté presente
     });
+    setSelectedCarpeta(event.extendedProps.carpeta || ''); // Asegúrate de que esto esté presente
     setModalOpen(true);
   };
 
@@ -175,44 +182,34 @@ const fetchICalEvents = async () => {
   }
 };
 
-const saveICalEventsToDatabase = async () => {
+// Modifica saveICalEventsToDatabase para aceptar source y url
+const saveICalEventsToDatabase = async (source, url) => {
   try {
-    // Fetch iCal data from the URL
-    const response = await fetch(`/api/icalEvents?url=${encodeURIComponent(calendarUrl)}`);
+    const response = await fetch(`/api/icalEvents?url=${encodeURIComponent(url)}`);
     const iCalData = await response.json();
-
-    console.log("Eventos iCal recibidos:", iCalData);
 
     if (!Array.isArray(iCalData) || iCalData.length === 0) {
       console.error("No iCal events to save.");
       return;
     }
 
-    // Format events for database
     const formattedEvents = iCalData.map(event => ({
       userId,
       title: event.title || "Sin título",
       start: convertDateToMySQLFormat(event.start),
       end: convertDateToMySQLFormat(event.end),
-      color: event.color || "#4285F4",
+      color: source === 'Google' ? '#4285F4' : source === 'Microsoft' ? '#F25022' : source === 'Apple' ? '#FF2D55' : '#FF2D55', // Asigna color basado en el source
+      source, // Añadir el source aquí
     }));
 
-    // Save events to the database
     const saveResponse = await fetch('/api/saveICalEvents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, url: calendarUrl, events: formattedEvents }),
+      body: JSON.stringify({ userId, url, events: formattedEvents, source }),
     });
-
-    const result = await saveResponse.json();
-    console.log("Respuesta del servidor:", result);
 
     if (!saveResponse.ok) throw new Error('Error al guardar eventos en la base de datos');
     console.log("Eventos y URL guardados en la base de datos.");
-
-    // Refresh the page after saving events
-    window.location.reload();
-
   } catch (error) {
     console.error('Error:', error);
   }
@@ -307,7 +304,6 @@ const googleImages = [
   "/integrateIcal4.jpg",
 ];
 
-
 const microsoftGuideSteps = [
   "1) En nuestra vista principal del calendario de Outlook, presionamos el ícono de Configuraciones.",
   "2) Seleccionar la sección de 'Calendario'.",
@@ -320,18 +316,20 @@ const microsoftImages = [
   "/integratemicrosoft3.jpg",
 ];
 
-const handleOpenGoogleModal = (url, color) => {
-  console.log('URL recibida:', url);
-  setCalendarUrl(url);
-  setEventColor(color); // Guarda el color
-};
+const appleGuideSteps = [
+  "1) Abre la aplicación de Calendario en tu iPhone.",
+  "2) Toca 'Calendarios' en la parte inferior de la pantalla.",
+  "3) Toca 'Agregar Calendario'.",
+  "4) Ingresa la URL de iCal y guarda."
+];
 
-const handleOpenMicrosoftModal = (url, color) => {
-  console.log('URL recibida:', url);
-  setCalendarUrl(url);
-  setEventColor(color); // Guarda el color
-};
-  
+const appleImages = [
+  "/imagenejemplo.jpg",
+  "/imagenejemplo.jpg",
+  "/imagenejemplo.jpg",
+  "/imagenejemplo.jpg",
+];
+
 useEffect(() => {
   const initialize = async () => {
     if (!calendarUrl) return; // Asegúrate de que la URL esté disponible
@@ -345,11 +343,41 @@ useEffect(() => {
 }, [calendarUrl]); // Añade `calendarUrl` como dependencia
 
   
+const handleAddCalendar = async (source, url) => {
+  try {
+    // Obtener eventos de iCal
+    await fetchICalEvents();
 
+    // Guardar eventos de iCal en la base de datos
+    await saveICalEventsToDatabase(source, url);
+
+    console.log('Eventos guardados correctamente');
+    fetchEvents(); // Refrescar eventos después de guardar
+  } catch (error) {
+    console.error('Error al procesar eventos de iCal:', error);
+  }
+};
+
+useEffect(() => {
+  const fetchCalendarUrls = async () => {
+    try {
+      const response = await fetch(`/api/saveICalEvents?userId=${userId}`);
+      const data = await response.json();
+      setCalendarUrls(data);
+      //console.log('Fetched calendar URLs:', data); // Verifica los datos
+    } catch (error) {
+      console.error('Error retrieving calendar URLs:', error);
+    }
+  };
+
+  if (userId) {
+    fetchCalendarUrls();
+  }
+}, [userId]);
 
   return (
     <div className="flex flex-col h-screen">
-      <NavBar />
+      <NavBar showFolderPanel={false} style={{ zIndex: 1000 }}/>
       <div className="flex justify-center w-full flex-grow p-4 mt-32">
 
         <div className="w-[70%] h-[60vh] overflow-auto">
@@ -361,13 +389,15 @@ useEffect(() => {
             center: 'title',
             end: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth',
           }}
+          style={{ zIndex: 1 }}
           events={[...calendarEvents, ...iCalEvents]}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventContent={(eventInfo) => {
             const isGoogle = eventInfo.event.extendedProps.googleEvent;
             const isMicrosoft = eventInfo.event.extendedProps.microsoftEvent;
-          
+            const isApple = eventInfo.event.extendedProps.appleEvent; // Añadir detección para Apple
+
             return (
               <div
                 className="event-box"
@@ -382,6 +412,7 @@ useEffect(() => {
                   alignItems: 'center',
                   gap: '4px',
                   width: '100%',
+                  cursor: 'pointer', // Añadir esta línea
                 }}
               >
                 {isGoogle && (
@@ -395,6 +426,13 @@ useEffect(() => {
                   <img
                     src="/icon-microsoft.png"
                     alt="Microsoft"
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                )}
+                {isApple && ( // Añadir logo de Apple
+                  <img
+                    src="/icon-apple.png"
+                    alt="Apple"
                     style={{ width: '16px', height: '16px' }}
                   />
                 )}
@@ -421,23 +459,37 @@ useEffect(() => {
       )}
       <FloatingButton onClick={handleFloatingButtonClick} />
 
+      <div className="flex justify-center items-center"> 
       <CalendarIntegrationButton
-        onClick={handleOpenGoogleModal}
+        onClick={(url, color) => handleAddCalendar('Google', url)}
         logoSrc="/icon-google.png"
         buttonText="Añadir Calendario Google"
         guideSteps={googleGuideSteps}
         images={googleImages}
-        eventColor="#4285F4" // Color para Google
+        eventColor="#4285F4"
+        initialUrl={calendarUrls['Google'] || ''} // Pasa la URL inicial para Google
       />
 
       <CalendarIntegrationButton
-        onClick={handleOpenMicrosoftModal}
+        onClick={(url, color) => handleAddCalendar('Microsoft', url)}
         logoSrc="/icon-microsoft.png"
         buttonText="Añadir Calendario Microsoft"
         guideSteps={microsoftGuideSteps}
         images={microsoftImages}
-        eventColor="#F25022" // Color para Microsoft
+        eventColor="#F25022"
+        initialUrl={calendarUrls['Microsoft'] || ''} // Pasa la URL inicial para Microsoft
       />
+
+      <CalendarIntegrationButton
+        onClick={(url, color) => handleAddCalendar('Apple', url)}
+        logoSrc="/icon-apple.png"
+        buttonText="Añadir Calendario iPhone"
+        guideSteps={appleGuideSteps}
+        images={appleImages}
+        eventColor="#FF2D55"
+        initialUrl={calendarUrls['Apple'] || ''} // Pasa la URL inicial para Apple
+      />
+    </div>
       
       {notificationVisible && (
         <Notification

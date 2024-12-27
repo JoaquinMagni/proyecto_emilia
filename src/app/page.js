@@ -97,11 +97,11 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen">
-      <NavBar />
+      <NavBar showFolderPanel={true}/>
       <main className="flex flex-col justify-center items-center min-h-screen">       
 
         {/* Agregar calendario en la vista de lista */}
-        <div className="w-full max-w-5xl p-2 mt-16">
+        <div className="w-full max-w-5xl p-2 mt-16" style={{ marginLeft: '500px' }}>
           <FullCalendar
             plugins={[timeGridPlugin, interactionPlugin]} // Incluye dayGridPlugin
             initialView="timeGridDay" // Cambia la vista inicial a "dayGridDay"
@@ -116,10 +116,10 @@ export default function Home() {
             dateClick={() => handleFloatingButtonClick()}
           />
         </div>
-          <h1>Bienvenido.</h1>
-          <h1 className="text-4xl font-bold mb-4">{t('home.welcomeTitle')}</h1>
-          <p className="text-lg mb-4">{t('home.examplePageDescription')}</p>
-          <p className="text-lg">{t('home.themeToggleInstruction')}</p>
+          <h1 style={{ marginLeft: '500px' }}>Bienvenido.</h1>
+          <h1 className="text-4xl font-bold mb-4" style={{ marginLeft: '500px' }} >{t('home.welcomeTitle')}</h1>
+          <p className="text-lg mb-4" style={{ marginLeft: '500px' }}>{t('home.examplePageDescription')}</p>
+          <p className="text-lg" style={{ marginLeft: '500px' }}>{t('home.themeToggleInstruction')}</p>
       </main>
 
       <FloatingButton onClick={handleFloatingButtonClick} />

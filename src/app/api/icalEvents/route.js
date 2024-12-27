@@ -21,7 +21,6 @@ export async function GET(req) {
         title: event.summary || 'Sin título',
         start: event.start,
         end: event.end,
-        color: '#4285F4',
         isICalEvent: true, // Marks as iCal event
       }));
 

@@ -8,18 +8,21 @@ import LanguageSwitcher from '../../../components/buttons/LanguajeSwitcher'; // 
 import ThemeSwitcher from '@/components/buttons/ThemeSwitcher';
 
 const ForgotPassword = () => {
-  const { t } = useTranslation();  // Utilizamos el hook de traducción
+  const { t } = useTranslation();
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [errors, setErrors] = useState('');
 
   const validateForm = () => {
     let newError = '';
 
-    if (!email.trim()) {
-      newError = t('forgotPassword.email') + ' ' + t('forgotPassword.isRequired'); // Traducción
+    if (!username.trim()) {
+      newError = t('forgotPassword.username') + ' ' + t('forgotPassword.isRequired');
+    } else if (!email.trim()) {
+      newError = t('forgotPassword.email') + ' ' + t('forgotPassword.isRequired');
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newError = t('forgotPassword.invalidEmail'); // Traducción
+      newError = t('forgotPassword.invalidEmail');
     }
 
     setErrors(newError);
@@ -27,10 +30,28 @@ const ForgotPassword = () => {
     return !newError;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      console.log('Password reset request submitted for:', { email });
+      try {
+        const response = await fetch('/api/send-reset-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, username }),
+        });
+  
+        if (response.ok) {
+          alert('Password reset email sent to: ' + email);
+        } else {
+          const errorData = await response.json(); // Obtener el mensaje de error del servidor
+          alert('User not found: ' + errorData.message); // Mostrar el mensaje de error aunque el email no sea correcto.
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('An unexpected error occurred. Please try again later.'); // Mensaje de error general
+      }
     }
   };
 
@@ -72,23 +93,28 @@ const ForgotPassword = () => {
         </p>
 
         <div className="w-full max-w-sm">
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-2" htmlFor="email">{t('forgotPassword.email')}</label>
-              <input 
-                type="email" 
-                id="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)}
-                className={`border border-gray-300 rounded w-full p-2 ${errors ? 'border-red-500' : ''}`}
-                placeholder={t('forgotPassword.emailPlaceholder')}
-              />
-              {errors && <p className="text-red-500 text-sm">{errors}</p>}
-            </div>
-
-            {/* Botón para enviar el formulario */}
-            <SubmitButton text={t('forgotPassword.submit')} variant="primary" className="mb-4" />
-          </form>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder={t('forgotPassword.usernamePlaceholder')}
+            className="border border-gray-300 rounded w-full p-2 mb-4"
+          />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t('forgotPassword.emailPlaceholder')}
+            className="border border-gray-300 rounded w-full p-2 mb-4"
+          />
+          <SubmitButton 
+            text={t('forgotPassword.submit')} 
+            variant="primary"
+            className="w-full mb-4"
+            onClick={handleSubmit}
+          />
+        </form>
 
           {/* Botón para regresar al login */}
           <SubmitButton 

@@ -6,25 +6,25 @@ const convertDateToMySQLFormat = (dateString) => {
 };
 
 export async function POST(request) {
-  const { userId, url, events } = await request.json();
+  const { userId, url, events, source } = await request.json();
   
-  console.log("Datos recibidos:", { userId, url, events });
+  console.log("Datos recibidos:", { userId, url, events, source });
 
-  if (!userId || !url || !events) {
+  if (!userId || !url || !events || !source) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
   }
 
   try {
     await connection.execute(
-      'INSERT INTO calendarios_ical (userId, url) VALUES (?, ?) ON DUPLICATE KEY UPDATE url = ?',
-      [userId, url, url]
+      'INSERT INTO calendarios_ical (userId, url, source) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?, source = ?',
+      [userId, url, source, url, source] // Añadir source aquí
     );
 
     for (const event of events) {
       const eventStart = convertDateToMySQLFormat(event.start);
       const eventEnd = convertDateToMySQLFormat(event.end);
 
-      console.log("Guardando evento:", { userId, title: event.title, start: eventStart, end: eventEnd, color: event.color });
+      console.log("Guardando evento:", { userId, title: event.title, start: eventStart, end: eventEnd, color: event.color, source });
 
       // Check if the event already exists
       const [existingEvents] = await connection.execute(
@@ -35,8 +35,8 @@ export async function POST(request) {
       if (existingEvents.length === 0) {
         // Insert the event only if it doesn't exist
         await connection.execute(
-          'INSERT INTO eventos_calendario (userId, title, start, end, color) VALUES (?, ?, ?, ?, ?)',
-          [userId, event.title, eventStart, eventEnd, event.color]
+          'INSERT INTO eventos_calendario (userId, title, start, end, color, source, carpeta) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [userId, event.title, eventStart, eventEnd, event.color, source, source]
         );
       } else {
         console.log("Evento ya existe, no se duplica:", { userId, title: event.title, start: eventStart, end: eventEnd });
@@ -60,17 +60,20 @@ export async function GET(request) {
 
   try {
     const [rows] = await connection.execute(
-      'SELECT url FROM calendarios_ical WHERE userId = ?',
+      'SELECT url, source FROM calendarios_ical WHERE userId = ?',
       [userId]
     );
 
-    if (rows.length > 0) {
-      return NextResponse.json({ url: rows[0].url });
-    } else {
-      return NextResponse.json({ url: null });
-    }
+    const urls = {};
+    rows.forEach(row => {
+      urls[row.source] = row.url;
+    });
+
+    //console.log('URLs retrieved from database:', urls); // Verifica los datos
+
+    return NextResponse.json(urls);
   } catch (error) {
-    console.error('Error retrieving iCal URL:', error);
-    return NextResponse.json({ error: 'Error retrieving iCal URL' }, { status: 500 });
+    console.error('Error retrieving iCal URLs:', error);
+    return NextResponse.json({ error: 'Error retrieving iCal URLs' }, { status: 500 });
   }
 }

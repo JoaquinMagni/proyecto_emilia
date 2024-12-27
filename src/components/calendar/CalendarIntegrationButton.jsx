@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 
-function CalendarIntegrationButton({ onClick, logoSrc, buttonText, guideSteps, images, eventColor }) {
+function CalendarIntegrationButton({ onClick, logoSrc, buttonText, guideSteps, images, eventColor, initialUrl }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
-  const [calendarUrl, setCalendarUrl] = useState(''); // Añadir estado para la URL
+  const [calendarUrl, setCalendarUrl] = useState(initialUrl || ''); // Usa initialUrl
 
   const handleNextImage = () => {
     setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
@@ -76,14 +76,14 @@ function CalendarIntegrationButton({ onClick, logoSrc, buttonText, guideSteps, i
               type="text"
               placeholder="Ingrese su URL de iCal"
               className="w-full p-2 border rounded mb-4"
-              value={calendarUrl}
-              onChange={(e) => setCalendarUrl(e.target.value)} // Actualizar el estado
+              value={calendarUrl || initialUrl} // Usa initialUrl si calendarUrl está vacío
+              onChange={(e) => setCalendarUrl(e.target.value)}
             />
             <button
-            onClick={() => onClick(calendarUrl, eventColor)} // Pasa el color junto con la URL
-            className="bg-green-600 text-white px-4 py-2 rounded w-full"
+              onClick={() => onClick(calendarUrl, eventColor)} // Pasa el color junto con la URL
+              className="bg-green-600 text-white px-4 py-2 rounded w-full"
             >
-            Cargar Eventos
+              Cargar Eventos
             </button>
           </div>
         </div>

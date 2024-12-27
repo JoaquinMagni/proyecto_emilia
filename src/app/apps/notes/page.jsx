@@ -128,7 +128,7 @@ const NotesPage = () => {
 
   return (
     <>
-      <NavBar className="mb-32" />
+      <NavBar showFolderPanel={false} className="mb-32" />
       <div className="p-6 bg-gray-800 rounded-lg shadow-md mx-auto mt-28 mb-4" style={{ width: "70%", height: "80vh" }}>
         <h2 className="text-2xl font-bold text-white text-center flex-grow">Mis Notas</h2>
 

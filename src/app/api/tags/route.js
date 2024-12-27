@@ -5,7 +5,7 @@ export async function GET(req) {
     // Consulta para obtener todas las etiquetas (tags) de la tabla
     const rows = await db.query('SELECT JSON_UNQUOTE(tags) AS tags FROM notas WHERE tags IS NOT NULL');
 
-    console.log('Rows from database:', rows); // Debug para ver los datos obtenidos
+    //console.log('Rows from database:', rows); // Debug para ver los datos obtenidos
 
     // Verifica si `rows` tiene un primer nivel con los datos reales
     const actualRows = rows[0]; // Extraer el primer nivel de datos
@@ -29,11 +29,11 @@ export async function GET(req) {
       })
       .flat(); // Combinar todos los arrays en uno solo
 
-    console.log('Parsed tags:', allTags);
+    //console.log('Parsed tags:', allTags);
 
     // Obtener un conjunto único de tags
     const uniqueTags = [...new Set(allTags)];
-    console.log('Unique tags:', uniqueTags);
+    //console.log('Unique tags:', uniqueTags);
 
     return new Response(JSON.stringify(uniqueTags), {
       status: 200,

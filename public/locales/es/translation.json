@@ -69,5 +69,15 @@
     "welcomeTitle": "Bienvenido a la página principal",
     "examplePageDescription": "Esta es una página de ejemplo donde puedes cambiar el idioma y el tema entre claro y oscuro.",
     "themeToggleInstruction": "Prueba el interruptor de tema en la esquina superior derecha para ver el cambio de modo claro a oscuro."
+  },
+  "newPassword": {
+  "title": "Establecer una Nueva Contraseña",
+  "description": "Por favor, ingrese su nueva contraseña a continuación.",
+  "password": "Nueva Contraseña",
+  "confirmPassword": "Confirmar Nueva Contraseña",
+  "submit": "Actualizar Contraseña",
+  "passwordPlaceholder": "Ingrese su nueva contraseña",
+  "confirmPasswordPlaceholder": "Confirme su nueva contraseña",
+  "altIllustration": "Ilustración para establecer una nueva contraseña"
   }
 }
